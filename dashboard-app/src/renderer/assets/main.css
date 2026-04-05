@@ -6,12 +6,11 @@
   html, body {
     @apply bg-dash-bg text-dash-text overflow-hidden m-0 p-0;
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    width: 1920px;
-    height: 1080px;
+    width: 100vw;
+    height: 100vh;
   }
 
   * {
-    cursor: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     user-select: none;
