@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontFamily: typography.ipInput.fontFamily,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.primary,
   },
   sendButton: {
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.connectButton.fontFamily,
     fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 3,
+    letterSpacing: 4,
     color: colors.primary,
   },
 });

@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.windowTitle,
     textTransform: 'uppercase',
-    letterSpacing: 3,
+    letterSpacing: 5.2,
     marginBottom: 24,
   },
   buttons: {
@@ -81,14 +81,14 @@ const styles = StyleSheet.create({
     fontFamily: typography.status.fontFamily,
     fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 3,
+    letterSpacing: 4,
     color: colors.status,
   },
   disconnectText: {
     fontFamily: typography.status.fontFamily,
     fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: 3,
+    letterSpacing: 4,
     color: colors.error,
   },
 });

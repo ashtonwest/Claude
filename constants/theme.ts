@@ -75,7 +75,7 @@ export const typography = {
     fontFamily: fonts.mono,
     fontSize: 11,
     textTransform: 'uppercase' as const,
-    letterSpacing: 4,
+    letterSpacing: 4.4,
     color: colors.primary,
   },
 } as const;
