@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import type { AppSettings, AuthStatus, OnlineStatus } from '@shared/types'
 
+export type ViewMode = 'everything' | 'calendar' | 'photos' | 'weather-photos'
+
+const VIEW_MODES: ViewMode[] = ['everything', 'calendar', 'photos', 'weather-photos']
+
 interface AppState {
   settings: AppSettings | null
   authStatus: AuthStatus
@@ -9,6 +13,7 @@ interface AppState {
   isNightMode: boolean
   uiDriftX: number
   uiDriftY: number
+  viewMode: ViewMode
 
   loadSettings: () => Promise<void>
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>
@@ -19,6 +24,8 @@ interface AppState {
   setNightMode: (active: boolean) => void
   applyUiDrift: () => void
   restartApp: () => Promise<void>
+  cycleViewMode: () => void
+  setViewMode: (mode: ViewMode) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -29,6 +36,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isNightMode: false,
   uiDriftX: 0,
   uiDriftY: 0,
+  viewMode: 'everything',
 
   loadSettings: async () => {
     const settings = await window.electronAPI['settings:get']()
@@ -75,5 +83,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   restartApp: async () => {
     await window.electronAPI['app:restart']()
+  },
+
+  cycleViewMode: () => {
+    set((state) => {
+      const currentIdx = VIEW_MODES.indexOf(state.viewMode)
+      const nextIdx = (currentIdx + 1) % VIEW_MODES.length
+      return { viewMode: VIEW_MODES[nextIdx] as ViewMode }
+    })
+  },
+
+  setViewMode: (mode) => {
+    set({ viewMode: mode })
   }
 }))

@@ -54,7 +54,7 @@ export const WeatherWidget: React.FC = () => {
       </div>
 
       <div className="flex gap-4 mt-1">
-        {daily.map((day) => (
+        {daily.slice(1, 4).map((day) => (
           <div
             key={day.date}
             className="flex flex-col items-center gap-1 bg-dash-bg bg-opacity-50 rounded-xl px-3 py-2"

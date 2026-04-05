@@ -53,6 +53,7 @@ interface OpenMeteoResponse {
     temperature_2m_max: number[]
     temperature_2m_min: number[]
     weather_code: number[]
+    precipitation_probability_max: number[]
   }
 }
 
@@ -70,20 +71,21 @@ export async function fetchWeather(): Promise<WeatherData | null> {
     `latitude=${config.weather.latitude}&` +
     `longitude=${config.weather.longitude}&` +
     `current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,apparent_temperature,is_day&` +
-    `daily=weather_code,temperature_2m_max,temperature_2m_min&` +
+    `daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&` +
     `temperature_unit=${tempUnit}&` +
-    `forecast_days=4&` +
+    `forecast_days=16&` +
     `timezone=auto`
 
   try {
     const response = await axios.get<OpenMeteoResponse>(url, { timeout: 10_000 })
     const data = response.data
 
-    const daily: WeatherDaily[] = (data.daily.time || []).slice(1, 4).map((date, i) => ({
+    const daily: WeatherDaily[] = (data.daily.time || []).map((date, i) => ({
       date,
-      maxTemp: data.daily.temperature_2m_max[i + 1] || 0,
-      minTemp: data.daily.temperature_2m_min[i + 1] || 0,
-      weatherCode: data.daily.weather_code[i + 1] || 0
+      maxTemp: data.daily.temperature_2m_max[i] || 0,
+      minTemp: data.daily.temperature_2m_min[i] || 0,
+      weatherCode: data.daily.weather_code[i] || 0,
+      precipitationProbability: data.daily.precipitation_probability_max[i] || 0
     }))
 
     const weather: WeatherData = {

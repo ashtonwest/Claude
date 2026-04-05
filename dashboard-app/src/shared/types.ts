@@ -23,6 +23,7 @@ export interface WeatherDaily {
   maxTemp: number
   minTemp: number
   weatherCode: number
+  precipitationProbability: number
 }
 
 export interface WeatherData {

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo } from 'react'
 import { useCalendarStore } from '../stores/calendarStore'
+import { useWeatherStore } from '../stores/weatherStore'
 import { useAppStore } from '../stores/appStore'
-import { GOOGLE_CALENDAR_COLOR_MAP } from '@shared/types'
-import type { CalendarEvent } from '@shared/types'
+import { GOOGLE_CALENDAR_COLOR_MAP, WMO_WEATHER_CODES } from '@shared/types'
+import type { CalendarEvent, WeatherDaily } from '@shared/types'
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -27,6 +28,15 @@ function isSameDay(d1: Date, d2: Date): boolean {
     d1.getDate() === d2.getDate()
 }
 
+function daysBetween(d1: Date, d2: Date): number {
+  const oneDay = 24 * 60 * 60 * 1000
+  return Math.round((d2.getTime() - d1.getTime()) / oneDay)
+}
+
+function formatDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export const CalendarPanel: React.FC = () => {
   const events = useCalendarStore((s) => s.events)
   const fetchEvents = useCalendarStore((s) => s.fetchEvents)
@@ -34,6 +44,7 @@ export const CalendarPanel: React.FC = () => {
   const setSelectedDate = useCalendarStore((s) => s.setSelectedDate)
   const authStatus = useAppStore((s) => s.authStatus)
   const settings = useAppStore((s) => s.settings)
+  const weather = useWeatherStore((s) => s.weather)
 
   const today = useMemo(() => new Date(), [])
   const [viewYear, viewMonth] = useMemo(() => [today.getFullYear(), today.getMonth()], [today])
@@ -47,6 +58,17 @@ export const CalendarPanel: React.FC = () => {
     const interval = setInterval(() => void fetchEvents(start, end), intervalMs)
     return () => clearInterval(interval)
   }, [viewYear, viewMonth, fetchEvents, settings?.calendar.refreshIntervalMinutes])
+
+  // Build a weather lookup by date string
+  const weatherByDate = useMemo(() => {
+    const map = new Map<string, WeatherDaily>()
+    if (weather?.daily) {
+      for (const day of weather.daily) {
+        map.set(day.date, day)
+      }
+    }
+    return map
+  }, [weather])
 
   const calendarGrid = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1).getDay()
@@ -75,6 +97,22 @@ export const CalendarPanel: React.FC = () => {
     }
     return map
   }, [events, viewMonth, viewYear])
+
+  // Get selected date info
+  const selectedInfo = useMemo(() => {
+    if (!selectedDate) return null
+    const parts = selectedDate.split('-').map(Number)
+    const year = parts[0] ?? viewYear
+    const month = parts[1] ?? viewMonth
+    const day = parts[2] ?? 1
+    const date = new Date(year, month, day)
+    const daysFromToday = daysBetween(today, date)
+    const dateKey = formatDateKey(date)
+    const dayWeather = weatherByDate.get(dateKey)
+    const dayEvents = eventsByDay.get(day) ?? []
+
+    return { date, day, daysFromToday, dayWeather, dayEvents, dateKey }
+  }, [selectedDate, viewYear, viewMonth, today, weatherByDate, eventsByDay])
 
   const todayEvents = useMemo(() => {
     return events
@@ -136,13 +174,20 @@ export const CalendarPanel: React.FC = () => {
             const dayEvents = eventsByDay.get(day) ?? []
             const isSelected = selectedDate === `${viewYear}-${viewMonth}-${day}`
 
+            // Show weather icon on days within 15 days
+            const cellDate = new Date(viewYear, viewMonth, day)
+            const daysAway = daysBetween(today, cellDate)
+            const dateKey = formatDateKey(cellDate)
+            const cellWeather = daysAway >= 0 && daysAway <= 15 ? weatherByDate.get(dateKey) : undefined
+
             return (
               <div
                 key={`day-${day}`}
-                className={`relative flex flex-col items-center p-2 rounded-lg transition-colors ${
+                className={`relative flex flex-col items-center p-1.5 rounded-lg transition-colors ${
                   isToday ? 'bg-dash-accent' : isSelected ? 'bg-dash-border' : 'hover:bg-dash-border'
                 }`}
-                onPointerDown={() => setSelectedDate(`${viewYear}-${viewMonth}-${day}`)}
+                style={{ cursor: 'pointer' }}
+                onPointerDown={() => setSelectedDate(isSelected ? null : `${viewYear}-${viewMonth}-${day}`)}
               >
                 <span
                   className={`font-medium ${isToday ? 'text-white' : 'text-dash-text'}`}
@@ -150,61 +195,142 @@ export const CalendarPanel: React.FC = () => {
                 >
                   {day}
                 </span>
-                {dayEvents.length > 0 && (
-                  <div className="flex gap-0.5 mt-0.5">
-                    {dayEvents.slice(0, 3).map((e, j) => (
-                      <div
-                        key={j}
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ backgroundColor: getEventColor(e.colorId) }}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-0.5 mt-0.5 h-4">
+                  {cellWeather && (
+                    <span style={{ fontSize: '12px', lineHeight: 1 }}>
+                      {WMO_WEATHER_CODES[cellWeather.weatherCode]?.icon ?? ''}
+                    </span>
+                  )}
+                  {dayEvents.slice(0, 2).map((e, j) => (
+                    <div
+                      key={j}
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: getEventColor(e.colorId) }}
+                    />
+                  ))}
+                </div>
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* Today's Agenda */}
+      {/* Selected Date Weather + Events OR Today's Agenda */}
       <div className="bg-dash-surface rounded-2xl p-4 flex-1 overflow-hidden">
-        <h3 className="text-dash-text font-semibold mb-3" style={{ fontSize: '22px' }}>
-          Today&apos;s Agenda
-        </h3>
-
-        {todayEvents.length === 0 ? (
-          <p className="text-dash-text-secondary" style={{ fontSize: '18px' }}>
-            No events today
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: '300px' }}>
-            {todayEvents.map((event) => (
-              <div
-                key={event.id}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-dash-bg bg-opacity-50"
+        {selectedInfo ? (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-dash-text font-semibold" style={{ fontSize: '22px' }}>
+                {selectedInfo.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </h3>
+              <button
+                className="text-dash-text-secondary hover:text-dash-text px-2"
+                style={{ fontSize: '18px', cursor: 'pointer' }}
+                onClick={() => setSelectedDate(null)}
               >
-                <div
-                  className="w-1 h-8 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: getEventColor(event.colorId) }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-dash-text truncate"
-                    style={{ fontSize: '20px' }}
-                  >
-                    {event.summary}
-                  </p>
-                </div>
-                <span
-                  className="text-dash-text-secondary flex-shrink-0 font-medium"
-                  style={{ fontSize: '18px' }}
-                >
-                  {getEventTime(event)}
+                Back
+              </button>
+            </div>
+
+            {/* Weather forecast for selected date */}
+            {selectedInfo.dayWeather && selectedInfo.daysFromToday >= 0 && selectedInfo.daysFromToday <= 15 && (
+              <div className="bg-dash-bg bg-opacity-50 rounded-xl p-3 mb-3 flex items-center gap-4">
+                <span style={{ fontSize: '32px' }}>
+                  {WMO_WEATHER_CODES[selectedInfo.dayWeather.weatherCode]?.icon ?? '🌡️'}
                 </span>
+                <div className="flex-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-dash-text font-bold" style={{ fontSize: '24px' }}>
+                      {Math.round(selectedInfo.dayWeather.maxTemp)}&deg; / {Math.round(selectedInfo.dayWeather.minTemp)}&deg;
+                    </span>
+                    <span className="text-dash-text-secondary" style={{ fontSize: '16px' }}>
+                      {weather?.units === 'fahrenheit' ? 'F' : 'C'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-dash-text-secondary" style={{ fontSize: '14px' }}>
+                    <span>{WMO_WEATHER_CODES[selectedInfo.dayWeather.weatherCode]?.description ?? 'Unknown'}</span>
+                    <span>💧 {selectedInfo.dayWeather.precipitationProbability}% rain</span>
+                    {selectedInfo.daysFromToday > 0 && (
+                      <span className="text-dash-text-secondary italic">
+                        {selectedInfo.daysFromToday === 1 ? 'Tomorrow' : `${selectedInfo.daysFromToday} days out`}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+
+            {selectedInfo.daysFromToday > 15 && (
+              <div className="bg-dash-bg bg-opacity-50 rounded-xl p-3 mb-3">
+                <p className="text-dash-text-secondary" style={{ fontSize: '14px' }}>
+                  Weather forecast not available beyond 15 days
+                </p>
+              </div>
+            )}
+
+            {/* Events for selected date */}
+            {selectedInfo.dayEvents.length === 0 ? (
+              <p className="text-dash-text-secondary" style={{ fontSize: '18px' }}>
+                No events this day
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: '250px' }}>
+                {selectedInfo.dayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-dash-bg bg-opacity-50"
+                  >
+                    <div
+                      className="w-1 h-8 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getEventColor(event.colorId) }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-dash-text truncate" style={{ fontSize: '20px' }}>
+                        {event.summary}
+                      </p>
+                    </div>
+                    <span className="text-dash-text-secondary flex-shrink-0 font-medium" style={{ fontSize: '18px' }}>
+                      {getEventTime(event)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <h3 className="text-dash-text font-semibold mb-3" style={{ fontSize: '22px' }}>
+              Today&apos;s Agenda
+            </h3>
+
+            {todayEvents.length === 0 ? (
+              <p className="text-dash-text-secondary" style={{ fontSize: '18px' }}>
+                No events today
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: '300px' }}>
+                {todayEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-dash-bg bg-opacity-50"
+                  >
+                    <div
+                      className="w-1 h-8 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getEventColor(event.colorId) }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-dash-text truncate" style={{ fontSize: '20px' }}>
+                        {event.summary}
+                      </p>
+                    </div>
+                    <span className="text-dash-text-secondary flex-shrink-0 font-medium" style={{ fontSize: '18px' }}>
+                      {getEventTime(event)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

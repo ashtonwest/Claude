@@ -7,7 +7,15 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { OfflineOverlay } from './components/OfflineOverlay'
 import { NightModeOverlay } from './components/NightModeOverlay'
 import { useAppStore } from './stores/appStore'
+import type { ViewMode } from './stores/appStore'
 import { useTripleTap } from './hooks/useTripleTap'
+
+const VIEW_MODE_LABELS: Record<ViewMode, string> = {
+  'everything': 'All',
+  'calendar': 'Calendar',
+  'photos': 'Photos',
+  'weather-photos': 'Weather'
+}
 
 const App: React.FC = () => {
   const settings = useAppStore((s) => s.settings)
@@ -18,6 +26,8 @@ const App: React.FC = () => {
   const applyUiDrift = useAppStore((s) => s.applyUiDrift)
   const uiDriftX = useAppStore((s) => s.uiDriftX)
   const uiDriftY = useAppStore((s) => s.uiDriftY)
+  const viewMode = useAppStore((s) => s.viewMode)
+  const cycleViewMode = useAppStore((s) => s.cycleViewMode)
 
   const tripleTap = useTripleTap(toggleSettings)
 
@@ -41,16 +51,15 @@ const App: React.FC = () => {
     }
   }, [])
 
-  // Keyboard shortcut: F2 to toggle settings (dev convenience)
+  // Keyboard shortcuts: F2 = settings, F3 = cycle view mode
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
-      if (e.key === 'F2') {
-        toggleSettings()
-      }
+      if (e.key === 'F2') toggleSettings()
+      if (e.key === 'F3') cycleViewMode()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [toggleSettings])
+  }, [toggleSettings, cycleViewMode])
 
   // UI drift for burn-in prevention
   useEffect(() => {
@@ -68,6 +77,21 @@ const App: React.FC = () => {
     )
   }
 
+  const showCalendar = viewMode === 'everything' || viewMode === 'calendar'
+  const showSlideshow = viewMode === 'everything' || viewMode === 'photos' || viewMode === 'weather-photos'
+  const showWeather = viewMode === 'everything' || viewMode === 'weather-photos'
+
+  // Layout widths based on view mode
+  const calendarWidth =
+    viewMode === 'calendar' ? '100%' :
+    viewMode === 'everything' ? '55%' :
+    '0%'
+
+  const slideshowWidth =
+    viewMode === 'photos' || viewMode === 'weather-photos' ? '100%' :
+    viewMode === 'everything' ? '45%' :
+    '0%'
+
   return (
     <div
       className="w-screen h-screen flex flex-col overflow-hidden bg-dash-bg"
@@ -78,19 +102,29 @@ const App: React.FC = () => {
     >
       {/* Top Bar */}
       <header className="flex items-start justify-between px-6 py-4 flex-shrink-0" style={{ height: '160px' }}>
-        {settings.display.showClock && <ClockDisplay />}
-        {settings.display.showWeather && <WeatherWidget />}
+        <ClockDisplay />
+        <div className="flex items-start gap-4">
+          {showWeather && <WeatherWidget />}
+          {/* View Mode Toggle */}
+          <button
+            className="bg-dash-surface bg-opacity-80 rounded-2xl px-5 py-3 text-dash-text font-semibold hover:bg-dash-border transition-colors flex-shrink-0"
+            style={{ fontSize: '18px', cursor: 'pointer' }}
+            onClick={cycleViewMode}
+          >
+            {VIEW_MODE_LABELS[viewMode]}
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
       <main className="flex flex-1 gap-4 px-4 pb-4 overflow-hidden min-h-0">
-        {settings.display.showCalendar && (
-          <div className="h-full" style={{ width: '55%', minHeight: 0 }}>
+        {showCalendar && (
+          <div className="h-full transition-all duration-500" style={{ width: calendarWidth, minHeight: 0 }}>
             <CalendarPanel />
           </div>
         )}
-        {settings.display.showSlideshow && (
-          <div className="h-full flex-1" style={{ minHeight: 0 }}>
+        {showSlideshow && (
+          <div className="h-full transition-all duration-500" style={{ width: slideshowWidth, minHeight: 0 }}>
             <SlideshowPanel />
           </div>
         )}
