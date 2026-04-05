@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../stores/appStore'
-import type { AppSettings, WeatherLocation, CalendarSource } from '@shared/types'
+import type { AppSettings, WeatherLocation } from '@shared/types'
 
 interface FieldProps {
   label: string
@@ -56,6 +56,8 @@ export const SettingsPanel: React.FC = () => {
   const authStatus = useAppStore((s) => s.authStatus)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const startAuthFlow = useAppStore((s) => s.startAuthFlow)
+  const addAccount = useAppStore((s) => s.addAccount)
+  const removeAccount = useAppStore((s) => s.removeAccount)
   const toggleSettings = useAppStore((s) => s.toggleSettings)
   const restartApp = useAppStore((s) => s.restartApp)
   const [pinInput, setPinInput] = useState('')
@@ -66,10 +68,7 @@ export const SettingsPanel: React.FC = () => {
   const [newLocLat, setNewLocLat] = useState('')
   const [newLocLng, setNewLocLng] = useState('')
 
-  // New calendar form
-  const [newCalName, setNewCalName] = useState('')
-  const [newCalId, setNewCalId] = useState('')
-  const [newCalColor, setNewCalColor] = useState('#039be5')
+  // (calendar sources removed — now uses multi-account)
 
   if (!settings) return null
 
@@ -166,46 +165,6 @@ export const SettingsPanel: React.FC = () => {
     })
   }
 
-  // --- Calendar source helpers ---
-  const addCalendar = (): void => {
-    if (!newCalName || !newCalId) return
-    const source: CalendarSource = {
-      id: generateId(),
-      name: newCalName,
-      calendarId: newCalId,
-      color: newCalColor,
-      enabled: true
-    }
-    void updateSettings({
-      calendar: {
-        ...settings.calendar,
-        sources: [...settings.calendar.sources, source]
-      }
-    })
-    setNewCalName('')
-    setNewCalId('')
-    setNewCalColor('#039be5')
-  }
-
-  const removeCalendar = (id: string): void => {
-    void updateSettings({
-      calendar: {
-        ...settings.calendar,
-        sources: settings.calendar.sources.filter((s) => s.id !== id)
-      }
-    })
-  }
-
-  const toggleCalendar = (id: string): void => {
-    void updateSettings({
-      calendar: {
-        ...settings.calendar,
-        sources: settings.calendar.sources.map((s) =>
-          s.id === id ? { ...s, enabled: !s.enabled } : s
-        )
-      }
-    })
-  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-90 overflow-y-auto">
@@ -221,132 +180,62 @@ export const SettingsPanel: React.FC = () => {
           </button>
         </div>
 
-        {/* Google Calendar Auth */}
+        {/* Google Accounts */}
         <section className="bg-dash-surface rounded-2xl p-6 mb-4">
           <h2 className="text-dash-text font-semibold mb-4" style={{ fontSize: '22px' }}>
-            Google Calendar
+            Google Accounts
           </h2>
-          {authStatus.isAuthenticated ? (
-            <p className="text-green-400 mb-2" style={{ fontSize: '16px' }}>
-              Connected as {authStatus.email ?? 'unknown'}
-            </p>
-          ) : (
-            <div>
-              <p className="text-dash-text-secondary mb-3" style={{ fontSize: '16px' }}>
-                {authStatus.error ?? 'Not connected'}
+
+          {/* OAuth credentials */}
+          {(!settings.googleClientId || !settings.googleClientSecret) && (
+            <div className="mb-4">
+              <p className="text-dash-text-secondary mb-3" style={{ fontSize: '14px' }}>
+                First, enter your Google OAuth credentials (from Google Cloud Console).
               </p>
-              <Field
-                label="Client ID"
-                value={settings.googleClientId}
-                onChange={(v) => update('googleClientId', v)}
-              />
-              <div className="mt-2">
-                <Field
-                  label="Client Secret"
-                  value={settings.googleClientSecret}
-                  onChange={(v) => update('googleClientSecret', v)}
-                  type="password"
-                />
+              <div className="grid grid-cols-1 gap-2">
+                <Field label="Client ID" value={settings.googleClientId} onChange={(v) => update('googleClientId', v)} />
+                <Field label="Client Secret" value={settings.googleClientSecret} onChange={(v) => update('googleClientSecret', v)} type="password" />
               </div>
-              <button
-                className="mt-3 px-4 py-2 rounded-lg bg-dash-accent text-white font-medium"
-                style={{ fontSize: '16px', cursor: 'pointer' }}
-                onPointerDown={() => void startAuthFlow()}
-                disabled={!settings.googleClientId || !settings.googleClientSecret}
-              >
-                Connect Google Calendar
-              </button>
             </div>
           )}
-        </section>
 
-        {/* Calendar Sources */}
-        <section className="bg-dash-surface rounded-2xl p-6 mb-4">
-          <h2 className="text-dash-text font-semibold mb-4" style={{ fontSize: '22px' }}>
-            Calendars
-          </h2>
-          <p className="text-dash-text-secondary mb-3" style={{ fontSize: '14px' }}>
-            Add multiple Google Calendar IDs. Your primary calendar is &quot;primary&quot;.
-            Find other calendar IDs in Google Calendar Settings → calendar → &quot;Integrate calendar&quot;.
-          </p>
-
-          {/* Existing calendars */}
+          {/* Connected accounts */}
           <div className="flex flex-col gap-2 mb-4">
-            {settings.calendar.sources.map((source) => (
-              <div
-                key={source.id}
-                className="flex items-center gap-3 bg-dash-bg bg-opacity-50 rounded-lg px-3 py-2"
-              >
-                <div
-                  className="w-4 h-4 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: source.color }}
-                />
+            {authStatus.accounts.map((account) => (
+              <div key={account.id} className="flex items-center gap-3 bg-dash-bg bg-opacity-50 rounded-lg px-3 py-2">
+                <div className="w-8 h-8 rounded-full bg-dash-accent flex items-center justify-center text-white font-bold" style={{ fontSize: '14px' }}>
+                  {account.email.charAt(0).toUpperCase()}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-dash-text font-medium truncate" style={{ fontSize: '16px' }}>
-                    {source.name}
-                  </p>
-                  <p className="text-dash-text-secondary truncate" style={{ fontSize: '12px' }}>
-                    {source.calendarId}
-                  </p>
+                  <p className="text-dash-text font-medium truncate" style={{ fontSize: '16px' }}>{account.email}</p>
                 </div>
                 <button
-                  className={`px-3 py-1 rounded text-sm ${
-                    source.enabled ? 'bg-dash-accent text-white' : 'bg-dash-border text-dash-text-secondary'
-                  }`}
+                  className="text-red-400 hover:text-red-300 px-3 py-1 rounded bg-dash-bg"
                   style={{ cursor: 'pointer', fontSize: '13px' }}
-                  onClick={() => toggleCalendar(source.id)}
+                  onClick={() => void removeAccount(account.id)}
                 >
-                  {source.enabled ? 'On' : 'Off'}
-                </button>
-                <button
-                  className="text-red-400 hover:text-red-300 px-2"
-                  style={{ cursor: 'pointer', fontSize: '18px' }}
-                  onClick={() => removeCalendar(source.id)}
-                >
-                  x
+                  Remove
                 </button>
               </div>
             ))}
+
+            {authStatus.accounts.length === 0 && settings.googleClientId && (
+              <p className="text-dash-text-secondary" style={{ fontSize: '14px' }}>
+                No accounts connected yet.
+              </p>
+            )}
           </div>
 
-          {/* Add new calendar */}
-          <div className="border border-dash-border rounded-lg p-3">
-            <p className="text-dash-text-secondary mb-2" style={{ fontSize: '14px' }}>Add Calendar</p>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                placeholder="Name (e.g. Work)"
-                value={newCalName}
-                onChange={(e) => setNewCalName(e.target.value)}
-                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
-                style={{ fontSize: '14px', cursor: 'auto' }}
-              />
-              <input
-                placeholder="Calendar ID (e.g. primary)"
-                value={newCalId}
-                onChange={(e) => setNewCalId(e.target.value)}
-                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
-                style={{ fontSize: '14px', cursor: 'auto' }}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <label className="text-dash-text-secondary" style={{ fontSize: '14px' }}>Color:</label>
-              <input
-                type="color"
-                value={newCalColor}
-                onChange={(e) => setNewCalColor(e.target.value)}
-                className="w-8 h-8 rounded border-none bg-transparent"
-                style={{ cursor: 'pointer' }}
-              />
-              <button
-                className="ml-auto px-4 py-2 rounded-lg bg-dash-accent text-white font-medium disabled:opacity-50"
-                style={{ fontSize: '14px', cursor: 'pointer' }}
-                onClick={addCalendar}
-                disabled={!newCalName || !newCalId}
-              >
-                Add
-              </button>
-            </div>
-          </div>
+          {/* Add account button */}
+          {settings.googleClientId && settings.googleClientSecret && (
+            <button
+              className="px-4 py-2 rounded-lg bg-dash-accent text-white font-medium"
+              style={{ fontSize: '16px', cursor: 'pointer' }}
+              onClick={() => void addAccount()}
+            >
+              + Add Google Account
+            </button>
+          )}
         </section>
 
         {/* Weather Locations */}

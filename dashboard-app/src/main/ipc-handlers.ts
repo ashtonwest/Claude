@@ -2,7 +2,7 @@ import { ipcMain, app, net } from 'electron'
 import { fetchEvents, forceRefresh, startPolling as startCalendarPolling } from './calendar-client'
 import { getNext, getQueue, initialize as initPhotoCache, startRescan } from './photo-cache'
 import { getData, startPolling as startWeatherPolling } from './weather-client'
-import { getAuthStatus, startAuthFlow } from './google-auth'
+import { getAuthStatus, startAuthFlow, addAccount, removeAccount } from './google-auth'
 import configWatcher from './config-watcher'
 import logger from './logger'
 import { getMainWindow } from './main'
@@ -77,8 +77,21 @@ export function registerAllHandlers(): void {
       return await startAuthFlow()
     } catch (err) {
       logger.error('IPC settings:openAuthFlow failed', { error: String(err) })
-      return { isAuthenticated: false, error: String(err) }
+      return { isAuthenticated: false, error: String(err), accounts: [] }
     }
+  })
+
+  ipcMain.handle('auth:addAccount', async () => {
+    try {
+      return await addAccount()
+    } catch (err) {
+      logger.error('IPC auth:addAccount failed', { error: String(err) })
+      return null
+    }
+  })
+
+  ipcMain.handle('auth:removeAccount', (_event, accountId: string) => {
+    removeAccount(accountId)
   })
 
   ipcMain.handle('auth:getStatus', () => {

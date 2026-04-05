@@ -29,6 +29,10 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('settings:openAuthFlow'),
   'auth:getStatus': () =>
     ipcRenderer.invoke('auth:getStatus'),
+  'auth:addAccount': () =>
+    ipcRenderer.invoke('auth:addAccount'),
+  'auth:removeAccount': (accountId: string) =>
+    ipcRenderer.invoke('auth:removeAccount', accountId),
   'app:getOnlineStatus': () =>
     ipcRenderer.invoke('app:getOnlineStatus'),
   'app:restart': () =>

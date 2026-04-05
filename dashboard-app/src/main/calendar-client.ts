@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { google } from 'googleapis'
-import { getOAuth2Client, getAccessToken, getAuthStatus } from './google-auth'
+import { getOAuth2ClientForAccount, getAccessTokenForAccount, getAuthStatus, getAllAccountIds } from './google-auth'
 import configWatcher from './config-watcher'
 import logger from './logger'
 import type { CalendarEvent } from '@shared/types'
@@ -44,39 +44,35 @@ function saveCache(events: CalendarEvent[]): void {
 }
 
 export async function fetchEvents(startDate: string, endDate: string): Promise<CalendarEvent[]> {
-  const auth = getAuthStatus()
-  if (!auth.isAuthenticated) {
-    logger.info('Calendar: not authenticated, returning cached data')
+  const accountIds = getAllAccountIds()
+  if (accountIds.length === 0) {
+    logger.info('Calendar: no accounts, returning cached data')
     if (cachedEvents.length === 0) {
       loadCache()
     }
     return filterByDateRange(cachedEvents, startDate, endDate)
   }
 
-  const token = await getAccessToken()
-  if (!token) {
-    logger.warn('Calendar: no valid access token')
-    return filterByDateRange(cachedEvents, startDate, endDate)
-  }
-
   try {
-    const client = getOAuth2Client()
-    if (!client) return filterByDateRange(cachedEvents, startDate, endDate)
-
-    const calendar = google.calendar({ version: 'v3', auth: client })
     const config = configWatcher.getConfig()
-
-    const sources = config.calendar.sources.filter((s) => s.enabled)
-    if (sources.length === 0) {
-      sources.push({ id: 'primary', name: 'Primary', calendarId: 'primary', color: '#039be5', enabled: true })
-    }
-
     const allEvents: CalendarEvent[] = []
 
-    for (const source of sources) {
+    for (const accountId of accountIds) {
+      const token = await getAccessTokenForAccount(accountId)
+      if (!token) {
+        logger.warn('Calendar: no valid token for account', { accountId })
+        continue
+      }
+
+      const client = getOAuth2ClientForAccount(accountId)
+      if (!client) continue
+
+      const calendar = google.calendar({ version: 'v3', auth: client })
+
+      // Fetch primary calendar for this account
       try {
         const response = await calendar.events.list({
-          calendarId: source.calendarId,
+          calendarId: 'primary',
           timeMin: new Date(startDate).toISOString(),
           timeMax: new Date(endDate).toISOString(),
           maxResults: config.calendar.maxEventsPerDay * 31,
@@ -84,7 +80,7 @@ export async function fetchEvents(startDate: string, endDate: string): Promise<C
           orderBy: 'startTime'
         })
 
-        const sourceEvents: CalendarEvent[] = (response.data.items || []).map((item) => ({
+        const accountEvents: CalendarEvent[] = (response.data.items || []).map((item) => ({
           id: item.id || '',
           summary: item.summary || 'Untitled',
           description: item.description || '',
@@ -97,13 +93,13 @@ export async function fetchEvents(startDate: string, endDate: string): Promise<C
             dateTime: item.end?.dateTime || undefined,
             date: item.end?.date || undefined
           },
-          colorId: item.colorId || source.color,
-          calendarId: source.calendarId
+          colorId: item.colorId || '7',
+          calendarId: accountId
         }))
 
-        allEvents.push(...sourceEvents)
+        allEvents.push(...accountEvents)
       } catch (err) {
-        logger.error('Failed to fetch calendar source', { calendarId: source.calendarId, error: String(err) })
+        logger.error('Failed to fetch calendar for account', { accountId, error: String(err) })
       }
     }
 

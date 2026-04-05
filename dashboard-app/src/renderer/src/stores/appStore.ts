@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AppSettings, AuthStatus, OnlineStatus } from '@shared/types'
+import type { AppSettings, AuthStatus, OnlineStatus, GoogleAccount } from '@shared/types'
 
 export type ViewMode = 'everything' | 'calendar' | 'photos' | 'weather-photos'
 
@@ -19,6 +19,8 @@ interface AppState {
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>
   loadAuthStatus: () => Promise<void>
   startAuthFlow: () => Promise<void>
+  addAccount: () => Promise<void>
+  removeAccount: (accountId: string) => Promise<void>
   loadOnlineStatus: () => Promise<void>
   toggleSettings: () => void
   setNightMode: (active: boolean) => void
@@ -30,7 +32,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   settings: null,
-  authStatus: { isAuthenticated: false },
+  authStatus: { isAuthenticated: false, accounts: [] },
   onlineStatus: { nas: false, calendar: false, weather: false },
   showSettings: false,
   isNightMode: false,
@@ -56,6 +58,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   startAuthFlow: async () => {
     const authStatus = await window.electronAPI['settings:openAuthFlow']()
+    set({ authStatus })
+  },
+
+  addAccount: async () => {
+    await window.electronAPI['auth:addAccount']()
+    const authStatus = await window.electronAPI['auth:getStatus']()
+    set({ authStatus })
+  },
+
+  removeAccount: async (accountId: string) => {
+    await window.electronAPI['auth:removeAccount'](accountId)
+    const authStatus = await window.electronAPI['auth:getStatus']()
     set({ authStatus })
   },
 

@@ -1,4 +1,4 @@
-import type { CalendarEvent, WeatherData, PhotoMeta, AppSettings, AuthStatus, OnlineStatus } from './types'
+import type { CalendarEvent, WeatherData, PhotoMeta, AppSettings, AuthStatus, OnlineStatus, GoogleAccount } from './types'
 
 export interface IpcChannelMap {
   'calendar:getEvents': { args: [startDate: string, endDate: string]; return: CalendarEvent[] }
@@ -10,6 +10,8 @@ export interface IpcChannelMap {
   'settings:set': { args: [settings: Partial<AppSettings>]; return: void }
   'settings:openAuthFlow': { args: []; return: AuthStatus }
   'auth:getStatus': { args: []; return: AuthStatus }
+  'auth:addAccount': { args: []; return: GoogleAccount | null }
+  'auth:removeAccount': { args: [accountId: string]; return: void }
   'app:getOnlineStatus': { args: []; return: OnlineStatus }
   'app:restart': { args: []; return: void }
 }

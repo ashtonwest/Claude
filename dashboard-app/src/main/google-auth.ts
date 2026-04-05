@@ -3,7 +3,7 @@ import { URL } from 'url'
 import { BrowserWindow } from 'electron'
 import { OAuth2Client } from 'google-auth-library'
 import Store from 'electron-store'
-import type { AuthStatus } from '@shared/types'
+import type { AuthStatus, GoogleAccount } from '@shared/types'
 import logger from './logger'
 import configWatcher from './config-watcher'
 
@@ -11,65 +11,87 @@ interface StoredTokens {
   access_token: string
   refresh_token: string
   expiry_date: number
-  email?: string
+  email: string
 }
 
-const store = new Store<{ tokens: StoredTokens }>({
+interface TokenStore {
+  accounts: Record<string, StoredTokens>
+}
+
+const store = new Store<TokenStore>({
   name: 'google-auth',
-  encryptionKey: 'family-dashboard-oauth-v1'
+  encryptionKey: 'family-dashboard-oauth-v1',
+  defaults: { accounts: {} }
 })
 
-let oauth2Client: OAuth2Client | null = null
+const clients = new Map<string, OAuth2Client>()
 
-function getClient(): OAuth2Client | null {
+function createClient(): OAuth2Client | null {
   const config = configWatcher.getConfig()
   if (!config.googleClientId || !config.googleClientSecret) {
     return null
   }
+  return new OAuth2Client(
+    config.googleClientId,
+    config.googleClientSecret,
+    'http://localhost:0/callback'
+  )
+}
 
-  if (!oauth2Client) {
-    oauth2Client = new OAuth2Client(
-      config.googleClientId,
-      config.googleClientSecret,
-      'http://localhost:0/callback'
-    )
-
-    const tokens = store.get('tokens')
-    if (tokens) {
-      oauth2Client.setCredentials({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expiry_date: tokens.expiry_date
-      })
-    }
+function getClientForAccount(accountId: string): OAuth2Client | null {
+  if (clients.has(accountId)) {
+    return clients.get(accountId) || null
   }
 
-  return oauth2Client
+  const client = createClient()
+  if (!client) return null
+
+  const accounts = store.get('accounts') || {}
+  const tokens = accounts[accountId]
+  if (tokens) {
+    client.setCredentials({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expiry_date: tokens.expiry_date
+    })
+  }
+
+  clients.set(accountId, client)
+  return client
 }
 
 export function getAuthStatus(): AuthStatus {
-  const client = getClient()
-  if (!client) {
-    return { isAuthenticated: false, error: 'Google OAuth not configured — add clientId and clientSecret in settings' }
+  const config = configWatcher.getConfig()
+  if (!config.googleClientId || !config.googleClientSecret) {
+    return {
+      isAuthenticated: false,
+      error: 'Google OAuth not configured — add clientId and clientSecret in settings',
+      accounts: []
+    }
   }
 
-  const tokens = store.get('tokens')
-  if (!tokens) {
-    return { isAuthenticated: false }
-  }
+  const accounts = store.get('accounts') || {}
+  const accountList: GoogleAccount[] = Object.entries(accounts).map(([id, tokens]) => ({
+    id,
+    email: tokens.email,
+    name: tokens.email.split('@')[0] || tokens.email,
+    color: '#039be5',
+    enabled: true
+  }))
 
   return {
-    isAuthenticated: true,
-    email: tokens.email,
-    expiresAt: tokens.expiry_date
+    isAuthenticated: accountList.length > 0,
+    email: accountList[0]?.email,
+    accounts: accountList
   }
 }
 
-export async function getAccessToken(): Promise<string | null> {
-  const client = getClient()
+export async function getAccessTokenForAccount(accountId: string): Promise<string | null> {
+  const client = getClientForAccount(accountId)
   if (!client) return null
 
-  const tokens = store.get('tokens')
+  const accounts = store.get('accounts') || {}
+  const tokens = accounts[accountId]
   if (!tokens) return null
 
   if (tokens.expiry_date && Date.now() >= tokens.expiry_date - 60_000) {
@@ -81,12 +103,14 @@ export async function getAccessToken(): Promise<string | null> {
         expiry_date: credentials.expiry_date || tokens.expiry_date,
         email: tokens.email
       }
-      store.set('tokens', updated)
+      const allAccounts = store.get('accounts') || {}
+      allAccounts[accountId] = updated
+      store.set('accounts', allAccounts)
       client.setCredentials(credentials)
-      logger.info('OAuth token refreshed')
+      logger.info('OAuth token refreshed', { accountId, email: tokens.email })
       return updated.access_token
     } catch (err) {
-      logger.error('Token refresh failed', { error: String(err) })
+      logger.error('Token refresh failed', { accountId, error: String(err) })
       return null
     }
   }
@@ -94,15 +118,18 @@ export async function getAccessToken(): Promise<string | null> {
   return tokens.access_token
 }
 
-export function getOAuth2Client(): OAuth2Client | null {
-  return getClient()
+export function getOAuth2ClientForAccount(accountId: string): OAuth2Client | null {
+  return getClientForAccount(accountId)
 }
 
-export async function startAuthFlow(): Promise<AuthStatus> {
-  const client = getClient()
-  if (!client) {
-    return { isAuthenticated: false, error: 'Google OAuth not configured' }
-  }
+export function getAllAccountIds(): string[] {
+  const accounts = store.get('accounts') || {}
+  return Object.keys(accounts)
+}
+
+export async function addAccount(): Promise<GoogleAccount | null> {
+  const client = createClient()
+  if (!client) return null
 
   return new Promise((resolve) => {
     const server = http.createServer(async (req, res) => {
@@ -119,7 +146,7 @@ export async function startAuthFlow(): Promise<AuthStatus> {
         if (!code) {
           res.writeHead(400)
           res.end('No authorization code received')
-          resolve({ isAuthenticated: false, error: 'No authorization code received' })
+          resolve(null)
           server.close()
           return
         }
@@ -128,36 +155,43 @@ export async function startAuthFlow(): Promise<AuthStatus> {
         const { tokens: credentials } = await client.getToken({ code, redirect_uri: redirectUri })
         client.setCredentials(credentials)
 
-        let email: string | undefined
+        let email = ''
         try {
           const tokenInfo = await client.getTokenInfo(credentials.access_token || '')
-          email = tokenInfo.email || undefined
+          email = tokenInfo.email || ''
         } catch {
-          // email is optional
+          email = `account-${Date.now()}`
         }
 
+        const accountId = email || `account-${Date.now()}`
         const stored: StoredTokens = {
           access_token: credentials.access_token || '',
           refresh_token: credentials.refresh_token || '',
           expiry_date: credentials.expiry_date || 0,
           email
         }
-        store.set('tokens', stored)
+
+        const accounts = store.get('accounts') || {}
+        accounts[accountId] = stored
+        store.set('accounts', accounts)
+        clients.set(accountId, client)
 
         res.writeHead(200, { 'Content-Type': 'text/html' })
-        res.end('<html><body><h1>Authenticated! You can close this window.</h1></body></html>')
+        res.end(`<html><body><h1>Account added: ${email}</h1><p>You can close this window.</p></body></html>`)
 
-        logger.info('Google OAuth completed', { email })
+        logger.info('Google account added', { email })
         resolve({
-          isAuthenticated: true,
+          id: accountId,
           email,
-          expiresAt: stored.expiry_date
+          name: email.split('@')[0] || email,
+          color: '#039be5',
+          enabled: true
         })
       } catch (err) {
         logger.error('OAuth callback error', { error: String(err) })
         res.writeHead(500)
         res.end('Authentication failed')
-        resolve({ isAuthenticated: false, error: String(err) })
+        resolve(null)
       } finally {
         server.close()
       }
@@ -195,12 +229,38 @@ export async function startAuthFlow(): Promise<AuthStatus> {
   })
 }
 
+export function removeAccount(accountId: string): void {
+  const accounts = store.get('accounts') || {}
+  delete accounts[accountId]
+  store.set('accounts', accounts)
+  clients.delete(accountId)
+  logger.info('Google account removed', { accountId })
+}
+
+// Legacy compat
+export async function startAuthFlow(): Promise<AuthStatus> {
+  await addAccount()
+  return getAuthStatus()
+}
+
+export function getAccessToken(): Promise<string | null> {
+  const ids = getAllAccountIds()
+  if (ids.length === 0) return Promise.resolve(null)
+  return getAccessTokenForAccount(ids[0]!)
+}
+
+export function getOAuth2Client(): OAuth2Client | null {
+  const ids = getAllAccountIds()
+  if (ids.length === 0) return null
+  return getOAuth2ClientForAccount(ids[0]!)
+}
+
 export function clearAuth(): void {
-  store.delete('tokens')
-  oauth2Client = null
-  logger.info('Google auth cleared')
+  store.set('accounts', {})
+  clients.clear()
+  logger.info('All Google accounts cleared')
 }
 
 configWatcher.on('changed', () => {
-  oauth2Client = null
+  clients.clear()
 })

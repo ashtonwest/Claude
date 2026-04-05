@@ -42,12 +42,23 @@ export interface PhotoMeta {
   filename: string
 }
 
+export interface GoogleAccount {
+  id: string
+  email: string
+  name: string
+  color: string
+  enabled: boolean
+}
+
 export interface AuthStatus {
   isAuthenticated: boolean
   email?: string
   expiresAt?: number
   error?: string
+  accounts: GoogleAccount[]
 }
+
+export type CalendarView = 'day' | 'week' | 'month' | 'year'
 
 export interface OnlineStatus {
   nas: boolean
