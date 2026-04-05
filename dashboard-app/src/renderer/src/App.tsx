@@ -32,13 +32,11 @@ const App: React.FC = () => {
 
   const tripleTap = useTripleTap(toggleSettings)
 
-  // Initial load
   useEffect(() => {
     void loadSettings()
     void loadAuthStatus()
   }, [loadSettings, loadAuthStatus])
 
-  // Listen for push events from main process
   useEffect(() => {
     const unsubConfig = window.electronAPI.onPushEvent('config:changed', (config) => {
       useAppStore.setState({ settings: config })
@@ -52,7 +50,6 @@ const App: React.FC = () => {
     }
   }, [])
 
-  // Keyboard shortcuts: F2 = settings, F3 = cycle view mode
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       if (e.key === 'F2') toggleSettings()
@@ -62,7 +59,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handler)
   }, [toggleSettings, cycleViewMode])
 
-  // UI drift for burn-in prevention
   useEffect(() => {
     if (!settings?.burnInPrevention.enabled) return
     const intervalMs = (settings.burnInPrevention.uiDriftIntervalMinutes ?? 30) * 60 * 1000
@@ -78,20 +74,15 @@ const App: React.FC = () => {
     )
   }
 
-  const showCalendar = viewMode === 'everything' || viewMode === 'calendar'
-  const showSlideshow = viewMode === 'everything' || viewMode === 'photos' || viewMode === 'weather-photos'
-  const showWeather = viewMode === 'everything' || viewMode === 'weather-photos'
+  // Determine panel visibility and positioning
+  const calendarVisible = viewMode === 'everything' || viewMode === 'calendar'
+  const slideshowVisible = viewMode === 'everything' || viewMode === 'photos' || viewMode === 'weather-photos'
+  const weatherVisible = viewMode === 'everything' || viewMode === 'weather-photos'
 
-  // Layout widths based on view mode
-  const calendarWidth =
-    viewMode === 'calendar' ? '100%' :
-    viewMode === 'everything' ? '55%' :
-    '0%'
-
-  const slideshowWidth =
-    viewMode === 'photos' || viewMode === 'weather-photos' ? '100%' :
-    viewMode === 'everything' ? '45%' :
-    '0%'
+  // Calendar is "on top" when it's the focused view
+  const calendarOnTop = viewMode === 'calendar'
+  // Slideshow is "on top" when photos or weather-photos
+  const slideshowOnTop = viewMode === 'photos' || viewMode === 'weather-photos'
 
   return (
     <div
@@ -105,15 +96,15 @@ const App: React.FC = () => {
       <header className="flex items-start justify-between px-6 py-4 flex-shrink-0" style={{ height: '160px' }}>
         <ClockDisplay />
         <div className="flex items-start gap-3">
-          {showWeather && <WeatherWidget />}
-          {/* View Mode Buttons */}
+          {weatherVisible && <WeatherWidget />}
+          {/* View Mode Tabs */}
           <div className="flex gap-1 bg-dash-surface bg-opacity-80 rounded-2xl p-1 flex-shrink-0">
             {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(([mode, label]) => (
               <button
                 key={mode}
-                className={`rounded-xl px-4 py-2 font-medium transition-colors ${
+                className={`rounded-xl px-4 py-2 font-medium transition-all duration-300 ${
                   viewMode === mode
-                    ? 'bg-dash-accent text-white'
+                    ? 'bg-dash-accent text-white shadow-lg'
                     : 'text-dash-text-secondary hover:text-dash-text hover:bg-dash-border'
                 }`}
                 style={{ fontSize: '15px', cursor: 'pointer' }}
@@ -126,21 +117,40 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex flex-1 gap-4 px-4 pb-4 overflow-hidden min-h-0">
-        {showCalendar && (
-          <div className="h-full transition-all duration-500" style={{ width: calendarWidth, minHeight: 0 }}>
-            <CalendarPanel />
-          </div>
-        )}
-        {showSlideshow && (
-          <div className="h-full transition-all duration-500" style={{ width: slideshowWidth, minHeight: 0 }}>
-            <SlideshowPanel />
-          </div>
-        )}
+      {/* Main Content — both panels always rendered, positioned with sliding transforms */}
+      <main className="relative flex-1 mx-4 mb-4 overflow-hidden min-h-0">
+        {/* Calendar Panel */}
+        <div
+          className="absolute top-0 bottom-0 transition-all duration-500 ease-in-out"
+          style={{
+            left: calendarVisible ? '0' : '-60%',
+            width: viewMode === 'calendar' ? '100%' : '55%',
+            opacity: calendarVisible ? 1 : 0,
+            zIndex: calendarOnTop ? 20 : 10,
+            cursor: 'pointer'
+          }}
+          onClick={() => setViewMode(viewMode === 'calendar' ? 'everything' : 'calendar')}
+        >
+          <CalendarPanel />
+        </div>
+
+        {/* Slideshow Panel */}
+        <div
+          className="absolute top-0 bottom-0 transition-all duration-500 ease-in-out"
+          style={{
+            right: slideshowVisible ? '0' : '-50%',
+            width: viewMode === 'photos' || viewMode === 'weather-photos' ? '100%' : 'calc(45% - 16px)',
+            opacity: slideshowVisible ? 1 : 0,
+            zIndex: slideshowOnTop ? 20 : 10,
+            cursor: 'pointer'
+          }}
+          onClick={() => setViewMode(viewMode === 'photos' ? 'everything' : 'photos')}
+        >
+          <SlideshowPanel />
+        </div>
       </main>
 
-      {/* Triple-tap zone (top-right corner, 60x60px) */}
+      {/* Triple-tap zone */}
       <div
         className="fixed top-0 right-0 z-50"
         style={{ width: '60px', height: '60px' }}

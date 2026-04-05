@@ -57,19 +57,28 @@ interface OpenMeteoResponse {
   }
 }
 
+function getActiveLocation(config: ReturnType<typeof configWatcher.getConfig>): { latitude: number; longitude: number } | null {
+  const { locations, activeLocationId } = config.weather
+  if (locations.length === 0) return null
+  const active = locations.find((l) => l.id === activeLocationId) ?? locations[0]
+  if (!active || (active.latitude === 0 && active.longitude === 0)) return null
+  return { latitude: active.latitude, longitude: active.longitude }
+}
+
 export async function fetchWeather(): Promise<WeatherData | null> {
   const config = configWatcher.getConfig()
+  const location = getActiveLocation(config)
 
-  if (config.weather.latitude === 0 && config.weather.longitude === 0) {
-    logger.info('Weather: coordinates not configured')
+  if (!location) {
+    logger.info('Weather: no location configured')
     return cachedWeather
   }
 
   const tempUnit = config.weather.units === 'fahrenheit' ? 'fahrenheit' : 'celsius'
   const url =
     `https://api.open-meteo.com/v1/forecast?` +
-    `latitude=${config.weather.latitude}&` +
-    `longitude=${config.weather.longitude}&` +
+    `latitude=${location.latitude}&` +
+    `longitude=${location.longitude}&` +
     `current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,apparent_temperature,is_day&` +
     `daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&` +
     `temperature_unit=${tempUnit}&` +

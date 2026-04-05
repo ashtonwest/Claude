@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../stores/appStore'
-import type { AppSettings } from '@shared/types'
+import type { AppSettings, WeatherLocation, CalendarSource } from '@shared/types'
 
 interface FieldProps {
   label: string
@@ -35,6 +35,7 @@ const Toggle: React.FC<ToggleProps> = ({ label, checked, onChange }) => (
     <span className="text-dash-text" style={{ fontSize: '16px' }}>{label}</span>
     <div
       className={`w-12 h-6 rounded-full transition-colors ${checked ? 'bg-dash-accent' : 'bg-dash-border'}`}
+      style={{ cursor: 'pointer' }}
       onPointerDown={() => onChange(!checked)}
     >
       <div
@@ -46,6 +47,10 @@ const Toggle: React.FC<ToggleProps> = ({ label, checked, onChange }) => (
   </div>
 )
 
+function generateId(): string {
+  return Math.random().toString(36).slice(2, 10)
+}
+
 export const SettingsPanel: React.FC = () => {
   const settings = useAppStore((s) => s.settings)
   const authStatus = useAppStore((s) => s.authStatus)
@@ -55,6 +60,16 @@ export const SettingsPanel: React.FC = () => {
   const restartApp = useAppStore((s) => s.restartApp)
   const [pinInput, setPinInput] = useState('')
   const [unlocked, setUnlocked] = useState(false)
+
+  // New location form
+  const [newLocName, setNewLocName] = useState('')
+  const [newLocLat, setNewLocLat] = useState('')
+  const [newLocLng, setNewLocLng] = useState('')
+
+  // New calendar form
+  const [newCalName, setNewCalName] = useState('')
+  const [newCalId, setNewCalId] = useState('')
+  const [newCalColor, setNewCalColor] = useState('#039be5')
 
   if (!settings) return null
 
@@ -87,7 +102,7 @@ export const SettingsPanel: React.FC = () => {
           />
           <button
             className="mt-4 w-full py-2 rounded-lg bg-dash-border text-dash-text-secondary"
-            style={{ fontSize: '16px' }}
+            style={{ fontSize: '16px', cursor: 'pointer' }}
             onPointerDown={toggleSettings}
           >
             Cancel
@@ -113,6 +128,85 @@ export const SettingsPanel: React.FC = () => {
     }
   }
 
+  // --- Weather location helpers ---
+  const addLocation = (): void => {
+    if (!newLocName || !newLocLat || !newLocLng) return
+    const loc: WeatherLocation = {
+      id: generateId(),
+      name: newLocName,
+      latitude: parseFloat(newLocLat),
+      longitude: parseFloat(newLocLng)
+    }
+    const updated = [...settings.weather.locations, loc]
+    void updateSettings({
+      weather: {
+        ...settings.weather,
+        locations: updated,
+        activeLocationId: settings.weather.activeLocationId || loc.id
+      }
+    })
+    setNewLocName('')
+    setNewLocLat('')
+    setNewLocLng('')
+  }
+
+  const removeLocation = (id: string): void => {
+    const updated = settings.weather.locations.filter((l) => l.id !== id)
+    const activeId = settings.weather.activeLocationId === id
+      ? (updated[0]?.id ?? '')
+      : settings.weather.activeLocationId
+    void updateSettings({
+      weather: { ...settings.weather, locations: updated, activeLocationId: activeId }
+    })
+  }
+
+  const setActiveLocation = (id: string): void => {
+    void updateSettings({
+      weather: { ...settings.weather, activeLocationId: id }
+    })
+  }
+
+  // --- Calendar source helpers ---
+  const addCalendar = (): void => {
+    if (!newCalName || !newCalId) return
+    const source: CalendarSource = {
+      id: generateId(),
+      name: newCalName,
+      calendarId: newCalId,
+      color: newCalColor,
+      enabled: true
+    }
+    void updateSettings({
+      calendar: {
+        ...settings.calendar,
+        sources: [...settings.calendar.sources, source]
+      }
+    })
+    setNewCalName('')
+    setNewCalId('')
+    setNewCalColor('#039be5')
+  }
+
+  const removeCalendar = (id: string): void => {
+    void updateSettings({
+      calendar: {
+        ...settings.calendar,
+        sources: settings.calendar.sources.filter((s) => s.id !== id)
+      }
+    })
+  }
+
+  const toggleCalendar = (id: string): void => {
+    void updateSettings({
+      calendar: {
+        ...settings.calendar,
+        sources: settings.calendar.sources.map((s) =>
+          s.id === id ? { ...s, enabled: !s.enabled } : s
+        )
+      }
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-90 overflow-y-auto">
       <div className="max-w-2xl mx-auto py-8 px-6">
@@ -120,24 +214,22 @@ export const SettingsPanel: React.FC = () => {
           <h1 className="text-dash-text font-bold" style={{ fontSize: '32px' }}>Settings</h1>
           <button
             className="w-12 h-12 rounded-full bg-dash-surface flex items-center justify-center text-dash-text"
-            style={{ fontSize: '24px' }}
+            style={{ fontSize: '24px', cursor: 'pointer' }}
             onPointerDown={toggleSettings}
           >
             X
           </button>
         </div>
 
-        {/* Google Calendar */}
+        {/* Google Calendar Auth */}
         <section className="bg-dash-surface rounded-2xl p-6 mb-4">
           <h2 className="text-dash-text font-semibold mb-4" style={{ fontSize: '22px' }}>
             Google Calendar
           </h2>
           {authStatus.isAuthenticated ? (
-            <div>
-              <p className="text-green-400 mb-2" style={{ fontSize: '16px' }}>
-                Connected as {authStatus.email ?? 'unknown'}
-              </p>
-            </div>
+            <p className="text-green-400 mb-2" style={{ fontSize: '16px' }}>
+              Connected as {authStatus.email ?? 'unknown'}
+            </p>
           ) : (
             <div>
               <p className="text-dash-text-secondary mb-3" style={{ fontSize: '16px' }}>
@@ -158,7 +250,7 @@ export const SettingsPanel: React.FC = () => {
               </div>
               <button
                 className="mt-3 px-4 py-2 rounded-lg bg-dash-accent text-white font-medium"
-                style={{ fontSize: '16px' }}
+                style={{ fontSize: '16px', cursor: 'pointer' }}
                 onPointerDown={() => void startAuthFlow()}
                 disabled={!settings.googleClientId || !settings.googleClientSecret}
               >
@@ -166,6 +258,203 @@ export const SettingsPanel: React.FC = () => {
               </button>
             </div>
           )}
+        </section>
+
+        {/* Calendar Sources */}
+        <section className="bg-dash-surface rounded-2xl p-6 mb-4">
+          <h2 className="text-dash-text font-semibold mb-4" style={{ fontSize: '22px' }}>
+            Calendars
+          </h2>
+          <p className="text-dash-text-secondary mb-3" style={{ fontSize: '14px' }}>
+            Add multiple Google Calendar IDs. Your primary calendar is &quot;primary&quot;.
+            Find other calendar IDs in Google Calendar Settings → calendar → &quot;Integrate calendar&quot;.
+          </p>
+
+          {/* Existing calendars */}
+          <div className="flex flex-col gap-2 mb-4">
+            {settings.calendar.sources.map((source) => (
+              <div
+                key={source.id}
+                className="flex items-center gap-3 bg-dash-bg bg-opacity-50 rounded-lg px-3 py-2"
+              >
+                <div
+                  className="w-4 h-4 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: source.color }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-dash-text font-medium truncate" style={{ fontSize: '16px' }}>
+                    {source.name}
+                  </p>
+                  <p className="text-dash-text-secondary truncate" style={{ fontSize: '12px' }}>
+                    {source.calendarId}
+                  </p>
+                </div>
+                <button
+                  className={`px-3 py-1 rounded text-sm ${
+                    source.enabled ? 'bg-dash-accent text-white' : 'bg-dash-border text-dash-text-secondary'
+                  }`}
+                  style={{ cursor: 'pointer', fontSize: '13px' }}
+                  onClick={() => toggleCalendar(source.id)}
+                >
+                  {source.enabled ? 'On' : 'Off'}
+                </button>
+                <button
+                  className="text-red-400 hover:text-red-300 px-2"
+                  style={{ cursor: 'pointer', fontSize: '18px' }}
+                  onClick={() => removeCalendar(source.id)}
+                >
+                  x
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add new calendar */}
+          <div className="border border-dash-border rounded-lg p-3">
+            <p className="text-dash-text-secondary mb-2" style={{ fontSize: '14px' }}>Add Calendar</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                placeholder="Name (e.g. Work)"
+                value={newCalName}
+                onChange={(e) => setNewCalName(e.target.value)}
+                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
+                style={{ fontSize: '14px', cursor: 'auto' }}
+              />
+              <input
+                placeholder="Calendar ID (e.g. primary)"
+                value={newCalId}
+                onChange={(e) => setNewCalId(e.target.value)}
+                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
+                style={{ fontSize: '14px', cursor: 'auto' }}
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <label className="text-dash-text-secondary" style={{ fontSize: '14px' }}>Color:</label>
+              <input
+                type="color"
+                value={newCalColor}
+                onChange={(e) => setNewCalColor(e.target.value)}
+                className="w-8 h-8 rounded border-none bg-transparent"
+                style={{ cursor: 'pointer' }}
+              />
+              <button
+                className="ml-auto px-4 py-2 rounded-lg bg-dash-accent text-white font-medium disabled:opacity-50"
+                style={{ fontSize: '14px', cursor: 'pointer' }}
+                onClick={addCalendar}
+                disabled={!newCalName || !newCalId}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Weather Locations */}
+        <section className="bg-dash-surface rounded-2xl p-6 mb-4">
+          <h2 className="text-dash-text font-semibold mb-4" style={{ fontSize: '22px' }}>
+            Weather Locations
+          </h2>
+          <p className="text-dash-text-secondary mb-3" style={{ fontSize: '14px' }}>
+            Add locations and tap one to set it as active. Find coordinates by right-clicking in Google Maps.
+          </p>
+
+          {/* Existing locations */}
+          <div className="flex flex-col gap-2 mb-4">
+            {settings.weather.locations.map((loc) => {
+              const isActive = loc.id === settings.weather.activeLocationId
+              return (
+                <div
+                  key={loc.id}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
+                    isActive ? 'bg-dash-accent bg-opacity-20 border border-dash-accent' : 'bg-dash-bg bg-opacity-50'
+                  }`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setActiveLocation(loc.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-dash-text font-medium" style={{ fontSize: '16px' }}>
+                      {loc.name}
+                      {isActive && (
+                        <span className="text-dash-accent ml-2" style={{ fontSize: '12px' }}>ACTIVE</span>
+                      )}
+                    </p>
+                    <p className="text-dash-text-secondary" style={{ fontSize: '12px' }}>
+                      {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)}
+                    </p>
+                  </div>
+                  <button
+                    className="text-red-400 hover:text-red-300 px-2"
+                    style={{ cursor: 'pointer', fontSize: '18px' }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeLocation(loc.id)
+                    }}
+                  >
+                    x
+                  </button>
+                </div>
+              )
+            })}
+
+            {settings.weather.locations.length === 0 && (
+              <p className="text-dash-text-secondary" style={{ fontSize: '14px' }}>
+                No locations saved. Add one below.
+              </p>
+            )}
+          </div>
+
+          {/* Add new location */}
+          <div className="border border-dash-border rounded-lg p-3">
+            <p className="text-dash-text-secondary mb-2" style={{ fontSize: '14px' }}>Add Location</p>
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                placeholder="Name (e.g. Home)"
+                value={newLocName}
+                onChange={(e) => setNewLocName(e.target.value)}
+                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
+                style={{ fontSize: '14px', cursor: 'auto' }}
+              />
+              <input
+                placeholder="Latitude"
+                value={newLocLat}
+                onChange={(e) => setNewLocLat(e.target.value)}
+                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
+                style={{ fontSize: '14px', cursor: 'auto' }}
+                type="number"
+                step="any"
+              />
+              <input
+                placeholder="Longitude"
+                value={newLocLng}
+                onChange={(e) => setNewLocLng(e.target.value)}
+                className="bg-dash-bg border border-dash-border rounded-lg px-3 py-2 text-dash-text outline-none focus:border-dash-accent"
+                style={{ fontSize: '14px', cursor: 'auto' }}
+                type="number"
+                step="any"
+              />
+            </div>
+            <button
+              className="mt-2 px-4 py-2 rounded-lg bg-dash-accent text-white font-medium disabled:opacity-50"
+              style={{ fontSize: '14px', cursor: 'pointer' }}
+              onClick={addLocation}
+              disabled={!newLocName || !newLocLat || !newLocLng}
+            >
+              Add Location
+            </button>
+          </div>
+
+          {/* Units toggle */}
+          <div className="mt-4">
+            <Toggle
+              label="Use Fahrenheit"
+              checked={settings.weather.units === 'fahrenheit'}
+              onChange={(checked) => {
+                void updateSettings({
+                  weather: { ...settings.weather, units: checked ? 'fahrenheit' : 'celsius' }
+                })
+              }}
+            />
+          </div>
         </section>
 
         {/* NAS Configuration */}
@@ -178,24 +467,6 @@ export const SettingsPanel: React.FC = () => {
             <Field label="Share Name" value={settings.nas.share} onChange={(v) => update('nas.share', v)} />
             <Field label="Username" value={settings.nas.username} onChange={(v) => update('nas.username', v)} />
             <Field label="Password" value={settings.nas.password} onChange={(v) => update('nas.password', v)} type="password" />
-          </div>
-        </section>
-
-        {/* Weather */}
-        <section className="bg-dash-surface rounded-2xl p-6 mb-4">
-          <h2 className="text-dash-text font-semibold mb-4" style={{ fontSize: '22px' }}>
-            Weather
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Latitude" value={settings.weather.latitude} onChange={(v) => update('weather.latitude', parseFloat(v) || 0)} type="number" />
-            <Field label="Longitude" value={settings.weather.longitude} onChange={(v) => update('weather.longitude', parseFloat(v) || 0)} type="number" />
-          </div>
-          <div className="mt-3">
-            <Toggle
-              label="Use Fahrenheit"
-              checked={settings.weather.units === 'fahrenheit'}
-              onChange={(checked) => update('weather.units', checked ? 'fahrenheit' : 'celsius')}
-            />
           </div>
         </section>
 
@@ -237,7 +508,7 @@ export const SettingsPanel: React.FC = () => {
           </h2>
           <button
             className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium"
-            style={{ fontSize: '16px' }}
+            style={{ fontSize: '16px', cursor: 'pointer' }}
             onPointerDown={() => void restartApp()}
           >
             Restart App

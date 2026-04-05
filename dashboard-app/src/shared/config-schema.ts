@@ -9,11 +9,22 @@ export const nasConfigSchema = z.object({
   domain: z.string().default('')
 })
 
+export const calendarSourceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  calendarId: z.string(),
+  color: z.string().default('#039be5'),
+  enabled: z.boolean().default(true)
+})
+
 export const calendarConfigSchema = z.object({
   provider: z.string().default('google'),
   refreshIntervalMinutes: z.number().min(1).default(2),
   lookaheadDays: z.number().min(1).default(30),
-  maxEventsPerDay: z.number().min(1).default(8)
+  maxEventsPerDay: z.number().min(1).default(8),
+  sources: z.array(calendarSourceSchema).default([
+    { id: 'primary', name: 'Primary', calendarId: 'primary', color: '#039be5', enabled: true }
+  ])
 })
 
 export const slideshowConfigSchema = z.object({
@@ -25,9 +36,16 @@ export const slideshowConfigSchema = z.object({
   maxCachedImages: z.number().min(10).default(200)
 })
 
+export const weatherLocationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  latitude: z.number(),
+  longitude: z.number()
+})
+
 export const weatherConfigSchema = z.object({
-  latitude: z.number().default(0),
-  longitude: z.number().default(0),
+  locations: z.array(weatherLocationSchema).default([]),
+  activeLocationId: z.string().default(''),
   units: z.enum(['fahrenheit', 'celsius']).default('fahrenheit'),
   refreshIntervalMinutes: z.number().min(1).default(15)
 })

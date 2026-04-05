@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useWeatherStore } from '../stores/weatherStore'
+import { useAppStore } from '../stores/appStore'
 import { WMO_WEATHER_CODES } from '@shared/types'
 
 function getWeatherIcon(code: number): string {
@@ -13,6 +14,13 @@ function getWeatherDescription(code: number): string {
 export const WeatherWidget: React.FC = () => {
   const weather = useWeatherStore((s) => s.weather)
   const fetchWeather = useWeatherStore((s) => s.fetchWeather)
+  const settings = useAppStore((s) => s.settings)
+
+  const activeLocationName = useMemo(() => {
+    if (!settings) return ''
+    const loc = settings.weather.locations.find((l) => l.id === settings.weather.activeLocationId)
+    return loc?.name ?? settings.weather.locations[0]?.name ?? ''
+  }, [settings])
 
   useEffect(() => {
     void fetchWeather()
@@ -23,8 +31,8 @@ export const WeatherWidget: React.FC = () => {
   if (!weather) {
     return (
       <div className="flex items-center gap-3 bg-dash-surface bg-opacity-80 rounded-2xl px-6 py-4">
-        <span className="text-dash-text-secondary" style={{ fontSize: '28px' }}>
-          Weather unavailable
+        <span className="text-dash-text-secondary" style={{ fontSize: '20px' }}>
+          Add a location in Settings
         </span>
       </div>
     )
@@ -33,8 +41,15 @@ export const WeatherWidget: React.FC = () => {
   const { current, daily, units } = weather
   const unitSymbol = units === 'fahrenheit' ? 'F' : 'C'
 
+  const viewMode = useAppStore((s) => s.viewMode)
+  const setViewMode = useAppStore((s) => s.setViewMode)
+
   return (
-    <div className="flex flex-col items-end gap-2 bg-dash-surface bg-opacity-80 rounded-2xl px-6 py-4">
+    <div
+      className="flex flex-col items-end gap-2 bg-dash-surface bg-opacity-80 rounded-2xl px-6 py-4 hover:bg-opacity-100 transition-all"
+      style={{ cursor: 'pointer' }}
+      onClick={() => setViewMode(viewMode === 'weather-photos' ? 'everything' : 'weather-photos')}
+    >
       <div className="flex items-center gap-4">
         <span style={{ fontSize: '48px' }}>{getWeatherIcon(current.weatherCode)}</span>
         <div className="flex flex-col items-end">
@@ -48,6 +63,7 @@ export const WeatherWidget: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-4 text-dash-text-secondary" style={{ fontSize: '16px' }}>
+        {activeLocationName && <span className="font-medium text-dash-text">{activeLocationName}</span>}
         <span>{getWeatherDescription(current.weatherCode)}</span>
         <span>💧 {current.humidity}%</span>
         <span>💨 {Math.round(current.windSpeed)} km/h</span>

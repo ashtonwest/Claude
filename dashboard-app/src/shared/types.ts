@@ -64,11 +64,20 @@ export interface NasConfig {
   domain: string
 }
 
+export interface CalendarSource {
+  id: string
+  name: string
+  calendarId: string
+  color: string
+  enabled: boolean
+}
+
 export interface CalendarConfig {
   provider: string
   refreshIntervalMinutes: number
   lookaheadDays: number
   maxEventsPerDay: number
+  sources: CalendarSource[]
 }
 
 export interface SlideshowConfig {
@@ -80,9 +89,16 @@ export interface SlideshowConfig {
   maxCachedImages: number
 }
 
-export interface WeatherConfig {
+export interface WeatherLocation {
+  id: string
+  name: string
   latitude: number
   longitude: number
+}
+
+export interface WeatherConfig {
+  locations: WeatherLocation[]
+  activeLocationId: string
   units: 'fahrenheit' | 'celsius'
   refreshIntervalMinutes: number
 }
