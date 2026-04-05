@@ -27,6 +27,7 @@ const App: React.FC = () => {
   const uiDriftX = useAppStore((s) => s.uiDriftX)
   const uiDriftY = useAppStore((s) => s.uiDriftY)
   const viewMode = useAppStore((s) => s.viewMode)
+  const setViewMode = useAppStore((s) => s.setViewMode)
   const cycleViewMode = useAppStore((s) => s.cycleViewMode)
 
   const tripleTap = useTripleTap(toggleSettings)
@@ -103,16 +104,25 @@ const App: React.FC = () => {
       {/* Top Bar */}
       <header className="flex items-start justify-between px-6 py-4 flex-shrink-0" style={{ height: '160px' }}>
         <ClockDisplay />
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           {showWeather && <WeatherWidget />}
-          {/* View Mode Toggle */}
-          <button
-            className="bg-dash-surface bg-opacity-80 rounded-2xl px-5 py-3 text-dash-text font-semibold hover:bg-dash-border transition-colors flex-shrink-0"
-            style={{ fontSize: '18px', cursor: 'pointer' }}
-            onClick={cycleViewMode}
-          >
-            {VIEW_MODE_LABELS[viewMode]}
-          </button>
+          {/* View Mode Buttons */}
+          <div className="flex gap-1 bg-dash-surface bg-opacity-80 rounded-2xl p-1 flex-shrink-0">
+            {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(([mode, label]) => (
+              <button
+                key={mode}
+                className={`rounded-xl px-4 py-2 font-medium transition-colors ${
+                  viewMode === mode
+                    ? 'bg-dash-accent text-white'
+                    : 'text-dash-text-secondary hover:text-dash-text hover:bg-dash-border'
+                }`}
+                style={{ fontSize: '15px', cursor: 'pointer' }}
+                onClick={() => setViewMode(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
