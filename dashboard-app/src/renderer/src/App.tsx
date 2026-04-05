@@ -41,6 +41,17 @@ const App: React.FC = () => {
     }
   }, [])
 
+  // Keyboard shortcut: F2 to toggle settings (dev convenience)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === 'F2') {
+        toggleSettings()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [toggleSettings])
+
   // UI drift for burn-in prevention
   useEffect(() => {
     if (!settings?.burnInPrevention.enabled) return
@@ -72,14 +83,14 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex flex-1 gap-4 px-4 pb-4 overflow-hidden">
+      <main className="flex flex-1 gap-4 px-4 pb-4 overflow-hidden min-h-0">
         {settings.display.showCalendar && (
-          <div className="flex-shrink-0" style={{ width: '55%' }}>
+          <div className="h-full" style={{ width: '55%', minHeight: 0 }}>
             <CalendarPanel />
           </div>
         )}
         {settings.display.showSlideshow && (
-          <div className="flex-1">
+          <div className="h-full flex-1" style={{ minHeight: 0 }}>
             <SlideshowPanel />
           </div>
         )}

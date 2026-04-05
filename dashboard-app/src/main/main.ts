@@ -5,6 +5,7 @@ import configWatcher from './config-watcher'
 import { registerAllHandlers } from './ipc-handlers'
 
 let mainWindow: BrowserWindow | null = null
+const isDev = process.env.NODE_ENV === 'development' || !!process.env.ELECTRON_RENDERER_URL
 
 function createWindow(): void {
   const config = configWatcher.getConfig()
@@ -12,11 +13,11 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1920,
     height: 1080,
-    kiosk: true,
-    fullscreen: true,
-    alwaysOnTop: true,
-    frame: false,
-    autoHideMenuBar: true,
+    kiosk: !isDev,
+    fullscreen: !isDev,
+    alwaysOnTop: !isDev,
+    frame: isDev,
+    autoHideMenuBar: !isDev,
     backgroundColor: '#0d1117',
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
@@ -26,22 +27,29 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    const blocked = [
-      input.alt && input.key === 'F4',
-      input.alt && input.key === 'Tab',
-      input.meta,
-      input.key === 'Escape',
-      input.control && input.key === 'w',
-      input.control && input.shift && input.key === 'I'
-    ]
-    if (blocked.some(Boolean)) {
-      event.preventDefault()
-    }
-  })
+  // Only block shortcuts in production
+  if (!isDev) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      const blocked = [
+        input.alt && input.key === 'F4',
+        input.alt && input.key === 'Tab',
+        input.meta,
+        input.key === 'Escape',
+        input.control && input.key === 'w'
+      ]
+      if (blocked.some(Boolean)) {
+        event.preventDefault()
+      }
+    })
+  }
 
-  if (config.display.cursorHidden) {
+  if (config.display.cursorHidden && !isDev) {
     void mainWindow.webContents.insertCSS('* { cursor: none !important; }')
+  }
+
+  // Open DevTools in dev mode
+  if (isDev) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
 
   if (process.env.NODE_ENV === 'development' || process.env.ELECTRON_RENDERER_URL) {
@@ -73,8 +81,12 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  logger.info('All windows closed, recreating...')
-  createWindow()
+  if (isDev) {
+    app.quit()
+  } else {
+    logger.info('All windows closed, recreating...')
+    createWindow()
+  }
 })
 
 app.on('render-process-gone', (_event, _webContents, details) => {
