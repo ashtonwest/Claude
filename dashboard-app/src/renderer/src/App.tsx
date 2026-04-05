@@ -33,8 +33,13 @@ const App: React.FC = () => {
   const tripleTap = useTripleTap(toggleSettings)
 
   useEffect(() => {
-    void loadSettings()
-    void loadAuthStatus()
+    console.log('Dashboard: initializing...')
+    loadSettings()
+      .then(() => console.log('Dashboard: settings loaded OK'))
+      .catch((err) => console.error('Dashboard: settings failed', err))
+    loadAuthStatus()
+      .then(() => console.log('Dashboard: auth loaded OK'))
+      .catch((err) => console.error('Dashboard: auth failed', err))
   }, [loadSettings, loadAuthStatus])
 
   useEffect(() => {
@@ -68,8 +73,8 @@ const App: React.FC = () => {
 
   if (!settings) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-dash-bg">
-        <span className="text-dash-text-secondary" style={{ fontSize: '24px' }}>Loading...</span>
+      <div className="w-screen h-screen flex items-center justify-center" style={{ backgroundColor: '#0d1117' }}>
+        <span style={{ fontSize: '24px', color: '#8b949e' }}>Loading dashboard...</span>
       </div>
     )
   }

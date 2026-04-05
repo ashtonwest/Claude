@@ -324,17 +324,17 @@ export const CalendarPanel: React.FC = () => {
   const weather = useWeatherStore((s) => s.weather)
 
   const today = useMemo(() => new Date(), [])
+  const viewYear = viewDate.getFullYear()
 
   useEffect(() => {
-    const year = viewDate.getFullYear()
-    const start = new Date(year, 0, 1).toISOString()
-    const end = new Date(year, 11, 31).toISOString()
+    const start = new Date(viewYear, 0, 1).toISOString()
+    const end = new Date(viewYear, 11, 31).toISOString()
     void fetchEvents(start, end)
 
     const intervalMs = (settings?.calendar.refreshIntervalMinutes ?? 2) * 60 * 1000
     const interval = setInterval(() => void fetchEvents(start, end), intervalMs)
     return () => clearInterval(interval)
-  }, [viewDate.getFullYear(), fetchEvents, settings?.calendar.refreshIntervalMinutes])
+  }, [viewYear, fetchEvents, settings?.calendar.refreshIntervalMinutes])
 
   const weatherByDate = useMemo(() => {
     const map = new Map<string, WeatherDaily>()
@@ -355,9 +355,9 @@ export const CalendarPanel: React.FC = () => {
         return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
       }
       case 'month': return viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      case 'year': return String(viewDate.getFullYear())
+      case 'year': return String(viewYear)
     }
-  }, [calendarView, viewDate])
+  }, [calendarView, viewDate, viewYear])
 
   const goToToday = useCallback(() => {
     setViewDate(new Date())
