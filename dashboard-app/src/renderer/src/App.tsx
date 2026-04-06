@@ -73,46 +73,45 @@ const App: React.FC = () => {
 
   if (!settings) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center" style={{ backgroundColor: '#0d1117' }}>
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0d1117' }}>
         <span style={{ fontSize: '24px', color: '#8b949e' }}>Loading dashboard...</span>
       </div>
     )
   }
 
-  // Determine panel visibility and positioning
-  const calendarVisible = viewMode === 'everything' || viewMode === 'calendar'
-  const slideshowVisible = viewMode === 'everything' || viewMode === 'photos' || viewMode === 'weather-photos'
-  const weatherVisible = viewMode === 'everything' || viewMode === 'weather-photos'
-
-  // Calendar is "on top" when it's the focused view
-  const calendarOnTop = viewMode === 'calendar'
-  // Slideshow is "on top" when photos or weather-photos
-  const slideshowOnTop = viewMode === 'photos' || viewMode === 'weather-photos'
+  const showCalendar = viewMode === 'everything' || viewMode === 'calendar'
+  const showSlideshow = viewMode === 'everything' || viewMode === 'photos' || viewMode === 'weather-photos'
+  const showWeather = viewMode === 'everything' || viewMode === 'weather-photos'
 
   return (
     <div
-      className="w-screen h-screen flex flex-col overflow-hidden bg-dash-bg"
       style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        backgroundColor: '#0d1117',
         transform: `translate(${uiDriftX}px, ${uiDriftY}px)`,
         transition: 'transform 2s ease-in-out'
       }}
     >
       {/* Top Bar */}
-      <header className="flex items-start justify-between px-6 py-4 flex-shrink-0" style={{ height: '160px' }}>
+      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '16px 24px', flexShrink: 0 }}>
         <ClockDisplay />
-        <div className="flex items-start gap-3">
-          {weatherVisible && <WeatherWidget />}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          {showWeather && <WeatherWidget />}
           {/* View Mode Tabs */}
-          <div className="flex gap-1 bg-dash-surface bg-opacity-80 rounded-2xl p-1 flex-shrink-0">
+          <div className="flex gap-1 bg-dash-surface rounded-2xl p-1" style={{ flexShrink: 0 }}>
             {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(([mode, label]) => (
               <button
                 key={mode}
-                className={`rounded-xl px-4 py-2 font-medium transition-all duration-300 ${
+                className={`rounded-xl px-4 py-2 font-medium ${
                   viewMode === mode
-                    ? 'bg-dash-accent text-white shadow-lg'
+                    ? 'bg-dash-accent text-white'
                     : 'text-dash-text-secondary hover:text-dash-text hover:bg-dash-border'
                 }`}
-                style={{ fontSize: '15px', cursor: 'pointer' }}
+                style={{ fontSize: '15px', cursor: 'pointer', border: 'none' }}
                 onClick={() => setViewMode(mode)}
               >
                 {label}
@@ -122,43 +121,23 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content — both panels always rendered, positioned with sliding transforms */}
-      <main className="relative flex-1 mx-4 mb-4 overflow-hidden min-h-0">
-        {/* Calendar Panel */}
-        <div
-          className="absolute top-0 bottom-0 transition-all duration-500 ease-in-out"
-          style={{
-            left: calendarVisible ? '0' : '-60%',
-            width: viewMode === 'calendar' ? '100%' : '55%',
-            opacity: calendarVisible ? 1 : 0,
-            zIndex: calendarOnTop ? 20 : 10,
-            cursor: 'pointer'
-          }}
-          onClick={() => setViewMode(viewMode === 'calendar' ? 'everything' : 'calendar')}
-        >
-          <CalendarPanel />
-        </div>
-
-        {/* Slideshow Panel */}
-        <div
-          className="absolute top-0 bottom-0 transition-all duration-500 ease-in-out"
-          style={{
-            right: slideshowVisible ? '0' : '-50%',
-            width: viewMode === 'photos' || viewMode === 'weather-photos' ? '100%' : 'calc(45% - 16px)',
-            opacity: slideshowVisible ? 1 : 0,
-            zIndex: slideshowOnTop ? 20 : 10,
-            cursor: 'pointer'
-          }}
-          onClick={() => setViewMode(viewMode === 'photos' ? 'everything' : 'photos')}
-        >
-          <SlideshowPanel />
-        </div>
+      {/* Main Content */}
+      <main style={{ display: 'flex', flex: 1, gap: '16px', padding: '0 16px 16px', overflow: 'hidden', minHeight: 0 }}>
+        {showCalendar && (
+          <div style={{ width: viewMode === 'calendar' ? '100%' : '55%', height: '100%', flexShrink: 0 }}>
+            <CalendarPanel />
+          </div>
+        )}
+        {showSlideshow && (
+          <div style={{ flex: 1, height: '100%', minWidth: 0 }}>
+            <SlideshowPanel />
+          </div>
+        )}
       </main>
 
       {/* Triple-tap zone */}
       <div
-        className="fixed top-0 right-0 z-50"
-        style={{ width: '60px', height: '60px' }}
+        style={{ position: 'fixed', top: 0, right: 0, width: '60px', height: '60px', zIndex: 50 }}
         {...tripleTap}
       />
 
