@@ -59,6 +59,14 @@ function createWindow(): void {
     void mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error('RENDERER FAILED TO LOAD:', errorCode, errorDescription)
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Renderer loaded successfully')
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -69,8 +77,16 @@ function createWindow(): void {
 app.whenReady().then(() => {
   logger.info('Application starting')
 
-  configWatcher.startWatching()
-  registerAllHandlers()
+  try {
+    configWatcher.startWatching()
+  } catch (err) {
+    console.error('Config watcher failed:', err)
+  }
+  try {
+    registerAllHandlers()
+  } catch (err) {
+    console.error('IPC handler registration failed:', err)
+  }
   createWindow()
 
   app.on('activate', () => {
@@ -101,10 +117,12 @@ app.on('child-process-gone', (_event, details) => {
 })
 
 process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error)
   logger.error('Uncaught exception', { error: error.message, stack: error.stack })
 })
 
 process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason)
   logger.error('Unhandled rejection', { reason: String(reason) })
 })
 

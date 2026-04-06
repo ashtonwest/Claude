@@ -117,11 +117,23 @@ export function registerAllHandlers(): void {
     pushToRenderer('config:changed', config)
   })
 
-  // Start background services
-  void initPhotoCache()
-  startRescan()
-  startCalendarPolling()
-  startWeatherPolling()
+  // Start background services (wrapped in try-catch so failures don't block UI)
+  try {
+    void initPhotoCache()
+    startRescan()
+  } catch (err) {
+    logger.error('Photo cache init failed', { error: String(err) })
+  }
+  try {
+    startCalendarPolling()
+  } catch (err) {
+    logger.error('Calendar polling start failed', { error: String(err) })
+  }
+  try {
+    startWeatherPolling()
+  } catch (err) {
+    logger.error('Weather polling start failed', { error: String(err) })
+  }
 
   logger.info('All IPC handlers registered and services started')
 }
