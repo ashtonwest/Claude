@@ -26,9 +26,19 @@ export interface WeatherDaily {
   precipitationProbability: number
 }
 
+export interface WeatherHourly {
+  time: string
+  temperature: number
+  weatherCode: number
+  precipitationProbability: number
+  humidity: number
+  windSpeed: number
+}
+
 export interface WeatherData {
   current: WeatherCurrent
   daily: WeatherDaily[]
+  hourly: WeatherHourly[]
   fetchedAt: number
   units: 'fahrenheit' | 'celsius'
 }
