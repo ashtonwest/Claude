@@ -386,7 +386,10 @@ export const SettingsPanel: React.FC = () => {
             <Field label="Dim End" value={settings.nightMode.dimEnd} onChange={(v) => update('nightMode.dimEnd', v)} />
           </div>
           <div className="mt-3">
-            <Toggle label="Clock Only Mode" checked={settings.nightMode.clockOnlyMode} onChange={(v) => update('nightMode.clockOnlyMode', v)} />
+            <Toggle label="Screen Off (standby)" checked={settings.nightMode.screenOff} onChange={(v) => update('nightMode.screenOff', v)} />
+          </div>
+          <div className="mt-3">
+            <Toggle label="Clock Only Mode (if not screen off)" checked={settings.nightMode.clockOnlyMode} onChange={(v) => update('nightMode.clockOnlyMode', v)} />
           </div>
         </section>
 

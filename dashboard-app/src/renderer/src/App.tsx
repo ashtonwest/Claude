@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { ClockDisplay } from './components/ClockDisplay'
 import { WeatherWidget } from './components/WeatherWidget'
+import { WeatherFullView } from './components/WeatherFullView'
 import { CalendarPanel } from './components/CalendarPanel'
 import { SlideshowPanel } from './components/SlideshowPanel'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -79,9 +80,10 @@ const App: React.FC = () => {
     )
   }
 
+  const isAllView = viewMode === 'everything'
   const showCalendar = viewMode === 'everything' || viewMode === 'calendar'
-  const showSlideshow = viewMode === 'everything' || viewMode === 'photos' || viewMode === 'weather-photos'
-  const showWeather = viewMode === 'everything' || viewMode === 'weather-photos'
+  const showSlideshow = viewMode === 'everything' || viewMode === 'photos'
+  const isWeatherView = viewMode === 'weather-photos'
 
   return (
     <div
@@ -97,10 +99,26 @@ const App: React.FC = () => {
       }}
     >
       {/* Top Bar */}
-      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '16px 24px', flexShrink: 0 }}>
-        <ClockDisplay />
+      <header style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        padding: isAllView ? '16px 24px' : '8px 24px',
+        flexShrink: 0
+      }}>
+        {/* Clock — scales down in focused views */}
+        <div style={{
+          transform: isAllView ? 'scale(1)' : 'scale(0.6)',
+          transformOrigin: 'top left',
+          transition: 'transform 0.3s ease'
+        }}>
+          <ClockDisplay />
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-          {showWeather && <WeatherWidget />}
+          {/* Weather widget only in All view */}
+          {isAllView && <WeatherWidget />}
+
           {/* View Mode Tabs */}
           <div className="flex gap-1 bg-dash-surface rounded-2xl p-1" style={{ flexShrink: 0 }}>
             {(Object.entries(VIEW_MODE_LABELS) as [ViewMode, string][]).map(([mode, label]) => (
@@ -123,11 +141,21 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main style={{ display: 'flex', flex: 1, gap: '16px', padding: '0 16px 16px', overflow: 'hidden', minHeight: 0 }}>
+        {/* Weather full view */}
+        {isWeatherView && (
+          <div style={{ flex: 1, height: '100%', minWidth: 0 }}>
+            <WeatherFullView />
+          </div>
+        )}
+
+        {/* Calendar */}
         {showCalendar && (
           <div style={{ width: viewMode === 'calendar' ? '100%' : '55%', height: '100%', flexShrink: 0 }}>
             <CalendarPanel />
           </div>
         )}
+
+        {/* Slideshow */}
         {showSlideshow && (
           <div style={{ flex: 1, height: '100%', minWidth: 0 }}>
             <SlideshowPanel />

@@ -120,6 +120,7 @@ export interface NightModeConfig {
   dimEnd: string
   dimOpacity: number
   clockOnlyMode: boolean
+  screenOff: boolean
 }
 
 export interface DisplayConfig {

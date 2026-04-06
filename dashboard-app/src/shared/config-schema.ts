@@ -55,7 +55,8 @@ export const nightModeConfigSchema = z.object({
   dimStart: z.string().default('22:00'),
   dimEnd: z.string().default('07:00'),
   dimOpacity: z.number().min(0).max(1).default(0.85),
-  clockOnlyMode: z.boolean().default(false)
+  clockOnlyMode: z.boolean().default(false),
+  screenOff: z.boolean().default(true)
 })
 
 export const displayConfigSchema = z.object({

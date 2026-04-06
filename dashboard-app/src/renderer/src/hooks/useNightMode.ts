@@ -24,7 +24,7 @@ function isInNightWindow(dimStart: string, dimEnd: string): boolean {
   }
 }
 
-export function useNightMode(): { isNightMode: boolean; dimOpacity: number; clockOnlyMode: boolean } {
+export function useNightMode(): { isNightMode: boolean; dimOpacity: number; clockOnlyMode: boolean; screenOff: boolean } {
   const settings = useAppStore((s) => s.settings)
   const isNightMode = useAppStore((s) => s.isNightMode)
   const setNightMode = useAppStore((s) => s.setNightMode)
@@ -48,6 +48,7 @@ export function useNightMode(): { isNightMode: boolean; dimOpacity: number; cloc
   return {
     isNightMode,
     dimOpacity: settings?.nightMode.dimOpacity ?? 0.85,
-    clockOnlyMode: settings?.nightMode.clockOnlyMode ?? false
+    clockOnlyMode: settings?.nightMode.clockOnlyMode ?? false,
+    screenOff: settings?.nightMode.screenOff ?? true
   }
 }
