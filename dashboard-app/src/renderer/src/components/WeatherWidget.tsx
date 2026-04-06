@@ -15,6 +15,8 @@ export const WeatherWidget: React.FC = () => {
   const weather = useWeatherStore((s) => s.weather)
   const fetchWeather = useWeatherStore((s) => s.fetchWeather)
   const settings = useAppStore((s) => s.settings)
+  const viewMode = useAppStore((s) => s.viewMode)
+  const setViewMode = useAppStore((s) => s.setViewMode)
 
   const activeLocationName = useMemo(() => {
     if (!settings) return ''
@@ -30,7 +32,7 @@ export const WeatherWidget: React.FC = () => {
 
   if (!weather) {
     return (
-      <div className="flex items-center gap-3 bg-dash-surface bg-opacity-80 rounded-2xl px-6 py-4">
+      <div className="flex items-center gap-3 bg-dash-surface rounded-2xl px-6 py-4">
         <span className="text-dash-text-secondary" style={{ fontSize: '20px' }}>
           Add a location in Settings
         </span>
@@ -41,12 +43,9 @@ export const WeatherWidget: React.FC = () => {
   const { current, daily, units } = weather
   const unitSymbol = units === 'fahrenheit' ? 'F' : 'C'
 
-  const viewMode = useAppStore((s) => s.viewMode)
-  const setViewMode = useAppStore((s) => s.setViewMode)
-
   return (
     <div
-      className="flex flex-col items-end gap-2 bg-dash-surface bg-opacity-80 rounded-2xl px-6 py-4 hover:bg-opacity-100 transition-all"
+      className="flex flex-col items-end gap-2 bg-dash-surface rounded-2xl px-6 py-4 hover:bg-dash-border transition-colors"
       style={{ cursor: 'pointer' }}
       onClick={() => setViewMode(viewMode === 'weather-photos' ? 'everything' : 'weather-photos')}
     >
