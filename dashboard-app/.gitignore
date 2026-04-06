@@ -1,0 +1,10 @@
+node_modules/
+out/
+dist/
+cache/
+logs/
+*.tsbuildinfo
+.env
+.env.*
+config/tokens.json
+config/credentials.json
