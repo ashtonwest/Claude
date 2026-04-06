@@ -91,6 +91,18 @@ export const WeatherFullView: React.FC = () => {
 
         {/* Hourly breakdown */}
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0 }}>
+          {selectedHourly.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px' }}>
+              <p style={{ fontSize: '20px', color: '#8b949e' }}>Loading hourly data...</p>
+              <p style={{ fontSize: '14px', color: '#8b949e' }}>If this persists, the weather cache may need to refresh. Wait 1-2 minutes.</p>
+              <button
+                onClick={() => { void fetchWeather(); }}
+                style={{ fontSize: '14px', color: '#e6edf3', cursor: 'pointer', background: '#1f6feb', border: 'none', borderRadius: '8px', padding: '8px 16px' }}
+              >
+                Refresh Now
+              </button>
+            </div>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' }}>
             {selectedHourly.map((hour) => {
               const time = new Date(hour.time)
@@ -124,6 +136,7 @@ export const WeatherFullView: React.FC = () => {
               )
             })}
           </div>
+          )}
         </div>
       </div>
     )

@@ -43,6 +43,8 @@ function saveCache(data: WeatherData): void {
 
 function isCacheFresh(): boolean {
   if (!cachedWeather) return false
+  // Force re-fetch if cache is missing hourly data (old format)
+  if (!cachedWeather.hourly || cachedWeather.hourly.length === 0) return false
   const config = configWatcher.getConfig()
   const maxAgeMs = config.weather.refreshIntervalMinutes * 60 * 1000
   return Date.now() - cachedWeather.fetchedAt < maxAgeMs
