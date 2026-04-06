@@ -40,37 +40,51 @@ export const SlideshowPanel: React.FC = () => {
 
   return (
     <div
-      className="relative h-full w-full rounded-2xl overflow-hidden bg-dash-surface"
+      style={{ position: 'relative', height: '100%', width: '100%', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#161b22' }}
       {...swipeHandlers}
     >
+      {/* Image container — clips the pan/zoom animation */}
       {currentPhoto ? (
-        <img
-          src={getImageSrc(currentPhoto.cachePath)}
-          alt={currentPhoto.filename}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            animation: panZoomEnabled ? 'panZoom 30s ease-in-out infinite' : 'none',
-            transition: `opacity ${transitionMs}ms ease-in-out`,
-            opacity: transitioning ? 0 : 1
-          }}
-        />
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          <img
+            src={getImageSrc(currentPhoto.cachePath)}
+            alt={currentPhoto.filename}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              animation: panZoomEnabled ? 'panZoom 30s ease-in-out infinite' : 'none',
+              transition: `opacity ${transitionMs}ms ease-in-out`,
+              opacity: transitioning ? 0 : 1
+            }}
+          />
+        </div>
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center' }}>
             <span style={{ fontSize: '64px' }}>📷</span>
-            <p className="text-dash-text-secondary mt-4" style={{ fontSize: '22px' }}>
+            <p className="text-dash-text-secondary" style={{ fontSize: '22px', marginTop: '16px' }}>
               No photos available
             </p>
-            <p className="text-dash-text-secondary mt-1" style={{ fontSize: '16px' }}>
+            <p className="text-dash-text-secondary" style={{ fontSize: '16px', marginTop: '4px' }}>
               Configure NAS in settings to display photos
             </p>
           </div>
         </div>
       )}
 
+      {/* Caption — stays fixed, not affected by image animation */}
       {currentPhoto && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-4">
-          <p className="text-white text-opacity-70" style={{ fontSize: '14px' }}>
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '32px 16px 12px',
+          background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)',
+          zIndex: 10
+        }}>
+          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)' }}>
             {currentPhoto.filename}
           </p>
         </div>
