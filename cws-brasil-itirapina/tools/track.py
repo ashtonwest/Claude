@@ -4,10 +4,29 @@ sys.path.insert(0, "/home/user/Claude/cws-brasil-itirapina"); import proj
 S = "/tmp/claude-0/-home-user-Claude/ac14c686-5231-5440-9483-820e9194016f/scratchpad"
 cid = sys.argv[1]; meta = json.load(open(f"{S}/tour/data/{cid}.json")); fr = np.load(f"{S}/tour/frames/{cid}.npy", mmap_mode="r")
 N, H, W = fr.shape; FPS = meta["fps"]; TOUR = json.load(open("/home/user/Claude/cws-brasil-itirapina/tour.json"))
-auth = [dict(o, src=n["src"], view=n.get("view")) for n in TOUR["nodes"] if n["clip"] == cid for o in n.get("outlines", [])]
+auth = [dict(o, src=n["src"], view=n.get("view")) for n in TOUR["nodes"] + TOUR.get("anchors", []) if n["clip"] == cid for o in n.get("outlines", [])]
 def to_px(ll): return [(ll[0] / 360 + 0.5) * W, (0.5 - ll[1] / 180) * H]
 def to_ll(p): return [round(((p[0] / W - 0.5) * 360 + 180) % 360 - 180, 2), round((0.5 - p[1] / H) * 180, 2)]
+def small_step(A, B, poly):
+    """Small fixtures on plain walls (lights, AC units): follow the object itself; accept only a tight, consistent shift."""
+    x0, y0 = poly.min(0); x1, y1 = poly.max(0)
+    if max(x1 - x0, y1 - y0) > 110: return None
+    m = np.zeros((H, W), np.uint8); cv2.rectangle(m, (int(x0 - 14), int(y0 - 14)), (int(x1 + 14), int(y1 + 14)), 255, -1)
+    pts = cv2.goodFeaturesToTrack(A, 40, 0.01, 3, mask=m)
+    if pts is None or len(pts) < 5: return None
+    q, st, _ = cv2.calcOpticalFlowPyrLK(A, B, pts, None, winSize=(21, 21), maxLevel=3)
+    bk, st2, _ = cv2.calcOpticalFlowPyrLK(B, A, q, None, winSize=(21, 21), maxLevel=3)
+    ok = (st.ravel() == 1) & (st2.ravel() == 1) & (np.abs(bk - pts).reshape(-1, 2).max(1) < 0.8)
+    if ok.sum() < 5: return None
+    d = (q - pts).reshape(-1, 2)[ok]; med = np.median(d, 0)
+    if np.median(np.abs(d - med)) > 1.2 or np.abs(med).max() > 45: return None
+    new = poly + med
+    if new[:, 1].min() < H * 0.08 or new[:, 1].max() > H * 0.93: return None
+    return new.astype(np.float32)
 def step(A, B, poly):
+    r = big_step(A, B, poly)
+    return r if r is not None else small_step(A, B, poly)
+def big_step(A, B, poly):
     x0, y0 = poly.min(0); x1, y1 = poly.max(0); pad = 0.3 * max(x1 - x0, y1 - y0, 40)
     m = np.zeros((H, W), np.uint8); cv2.rectangle(m, (int(x0 - pad), int(y0 - pad)), (int(x1 + pad), int(y1 + pad)), 255, -1)
     pts = cv2.goodFeaturesToTrack(A, 300, 0.005, 5, mask=m)

@@ -26,7 +26,7 @@ const wrap = a => ((a + 540) % 360) - 180;
     const tapAt = async (x, y) => { const B = await box(); if (c.touch) await p.touchscreen.tap(B.x + x, B.y + y); else await p.mouse.click(B.x + x, B.y + y); };
     await p.goto(URL0); let s = await until(s => s.ready, 20000, 'first load');
     const meta = await p.evaluate(() => ({ n: __tour.T.nodes.length, vp: document.querySelector('meta[name=viewport]')?.content, iw: innerWidth, src: document.getElementById('vid').src.slice(0, 5), proto: location.protocol,
-      legs: __tour.T.nodes.map((n, i, a) => !!(a[i + 1] && a[i + 1].clip === n.clip && a[i + 1].t > n.t && !a[i + 1].cut)), ts: __tour.T.nodes.map(n => n.t), names: __tour.T.nodes.map(n => n.name) }));
+      legs: __tour.T.nodes.map((n, i, a) => !!(a[i + 1] && !a[i + 1].cut && ((a[i + 1].clip === n.clip && a[i + 1].t > n.t) || a[i + 1].cont))), ids: __tour.T.nodes.map(n => n.id), ts: __tour.T.nodes.map(n => n.t), names: __tour.T.nodes.map(n => n.name) }));
     Object.assign(R, { stops: meta.n, viewport: meta.vp, layoutWidth: meta.iw, protocol: meta.proto, videoSrc: meta.src, gl: s.gl });
     if (meta.iw !== c.ctx.viewport.width) fail('layout width'); if (!s.gl) fail('no webgl');
     await sleep(300); s = await st(); R.outlinesAtStart = s.drawn.length; await p.screenshot({ path: `${OUT}/${c.name}-0-start.png` });
@@ -54,7 +54,13 @@ const wrap = a => ((a + 540) % 360) - 180;
     const tapSizes = []; R.overlap = 'none found'; R.tapSelects = 0;
     for (let k = 1; k < meta.n; k++) {
       s = await st(); if (s.ni !== k) fail(`expected stop ${k} got ${s.ni}`);
-      await sleep(250); s = await st();
+      await sleep(1400); s = await st();
+      { const B1 = await box(); R.labelsChecked = (R.labelsChecked || 0) + s.drawn.length;
+        for (const d of s.drawn) { if (!d.label) continue; if (d.label[0] - d.label[2] < -1 || d.label[0] + d.label[2] > B1.width + 1 || d.label[1] < 40 || d.label[1] > B1.height) fail(`label off screen at stop ${k + 1}: ${d.key}`);
+          if (s.arrow && Math.abs(d.label[0] - s.arrow[0]) < d.label[2] + 30 && d.label[1] > s.arrow[1] - 40 && d.label[1] < s.arrow[1] + 62) fail(`label on the arrow at stop ${k + 1}: ${d.key}`); }
+        if (meta.ids[k] === 'mezanino') { R.mezaninoArrival = s.drawn.map(d => d.key).join(','); if (!s.drawn.some(d => d.key === 'guardacorpo')) fail('guardrail not in view on fresh arrival at the top of the stairs'); await p.screenshot({ path: `${OUT}/${c.name}-mezanino.png` }); }
+        if (['plen-mesas', 'corredor-cima', 'rampa', 'caixa', 'hall-poltronas', 'sala-cima'].includes(meta.ids[k])) await p.screenshot({ path: `${OUT}/${c.name}-${meta.ids[k]}.png` });
+        if (!s.drawn.length && !s.cue) fail('no outlines and no cue at stop ' + (k + 1)); }
       // tap every outline on screen at this stop; where two overlap, the smaller must win
       const inPoly = (x, y, pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
       const B0 = await box(); const okPt = q => q[0] > 20 && q[1] > 75 && q[0] < B0.width - 20 && q[1] < B0.height - 20 && !(s.arrow && Math.hypot(q[0] - s.arrow[0], q[1] - s.arrow[1]) < 55);
@@ -72,7 +78,7 @@ const wrap = a => ((a + 540) % 360) - 180;
         const text = await p.evaluate(() => document.getElementById('sheet').hidden ? '' : document.getElementById('sDo').textContent + ' | ' + document.getElementById('sLimit').textContent);
         if (q.sel && !text) fail('sheet empty for ' + q.sel);
         if (q.sel && q.sel !== d.key) { const smaller = q.drawn.find(x => x.key === q.sel); if (smaller && smaller.area <= d.area) R.overlap = `tap inside ${d.key} and ${q.sel}: selected the smaller (${q.sel})`; else fail('overlap picked the larger outline'); }
-        if (k === 2 && q.sel) await p.screenshot({ path: `${OUT}/${c.name}-3-tapped.png` });
+        if (k === 5 && q.sel) await p.screenshot({ path: `${OUT}/${c.name}-3-tapped.png` });
         await p.evaluate(() => document.getElementById('sClose').click());
       }
       tapSizes.push(...await p.evaluate(() => ['go', 'back', 'routeBtn', 'scopeBtn'].map(id => Math.min(...[document.getElementById(id).getBoundingClientRect()].map(b => Math.min(b.width, b.height))))));
@@ -80,14 +86,14 @@ const wrap = a => ((a + 540) % 360) - 180;
       if (bad) fail('layout at stop ' + k + ': ' + bad);
       if (k === meta.n - 1) break;
       const tBefore = s.t; await p.click('#go');
-      if (meta.legs[k]) { await sleep(700); const m = await st(); if (!(m.t > tBefore)) fail('leg ' + k + ' did not move'); s = await until(s => s.leg === null && s.paused && s.ni === k + 1, 60000, 'arrival ' + (k + 1)); R.arrivalError.push(+(s.t - meta.ts[k + 1]).toFixed(3)); }
+      if (meta.legs[k]) { await sleep(1200); const m = await st(); if (m.paused || m.leg === null) fail('leg ' + k + ' did not move'); if (meta.ids[k] === 'porta-lateral') { await sleep(9000); await p.click('#go'); await sleep(500); const g = await st(); R.cueInGap = g.cue || (g.drawn.length ? 'outlines present' : ''); if (!g.drawn.length && !g.cue) fail('no cue in an unmarked stretch'); await p.screenshot({ path: `${OUT}/${c.name}-gap-cue.png` }); await p.click('#go'); } s = await until(s => s.leg === null && s.paused && s.ni === k + 1, 60000, 'arrival ' + (k + 1)); R.arrivalError.push(+(s.t - meta.ts[k + 1]).toFixed(3)); }
       else { const j = await p.evaluate(() => !document.getElementById('jump').hidden && document.getElementById('jumpNote').textContent); if (!j) fail('no location-change card before stop ' + (k + 1)); R.gapCard = j; s = await until(s => s.ni === k + 1 && s.ready && s.leg === null, 30000, 'jump ' + (k + 1)); }
     }
     if (!(await p.evaluate(() => document.getElementById('go').disabled))) fail('go not disabled at the end');
     await p.screenshot({ path: `${OUT}/${c.name}-4-last.png` });
     // --- return to a location from the route list, and the scope list
     await p.click('#routeBtn'); await sleep(150); await p.screenshot({ path: `${OUT}/${c.name}-5-route.png` });
-    await p.click('#routeList [data-node="0"]'); s = await until(s => s.ni === 0 && s.ready, 20000, 'return to first stop'); if (Math.abs(s.t - meta.ts[0]) > 0.05) fail('return seek off');
+    await p.click('#routeList [data-node="0"]'); s = await until(s => s.ni === 0 && s.ready && s.clipId === 'B', 20000, 'return to first stop'); await sleep(300); s = await st(); if (Math.abs(s.t - meta.ts[0]) > 0.05) fail('return seek off');
     await p.click('#scopeBtn'); await sleep(150); R.scopeRows = await p.evaluate(() => document.querySelectorAll('#scopeList li').length); await p.screenshot({ path: `${OUT}/${c.name}-6-scope.png` }); await p.click('#scopeBtn');
     await p.click('#go'); await sleep(900); await p.click('#back'); s = await until(s => s.leg === null && s.ready && s.paused, 10000, 'back mid-leg'); if (s.ni !== 0) fail('back mid-leg wrong stop');
     R.minTapTarget = Math.round(Math.min(...tapSizes)); if (R.minTapTarget < 44) fail('tap target under 44');

@@ -22,6 +22,16 @@ for n in cfg["nodes"]:
     if n.get("look"): o["look"] = n["look"]
     if n.get("arrow"): o["arrow"] = proj.px_to_lonlat(n["arrow"][0], n["arrow"][1], n["view"])
     if n.get("cut"): o["cut"] = n["cut"]
+    if n.get("cont"): o["cont"] = True
+    if n.get("outlines"):   # where to face on a fresh arrival so the marked surfaces are in view
+        import math
+        v = [0.0, 0.0, 0.0]
+        for ol in n["outlines"]:
+            for q in ol["pts"]:
+                lo, la = proj.px_to_lonlat(q[0], q[1], n["view"]); lo, la = math.radians(lo), math.radians(la)
+                v[0] += math.cos(la) * math.sin(lo); v[1] += math.sin(la); v[2] += math.cos(la) * math.cos(lo)
+        m = math.sqrt(sum(x * x for x in v)) or 1
+        o["frame"] = [round(math.degrees(math.atan2(v[0], v[2])), 1), round(max(-25, min(15, math.degrees(math.asin(v[1] / m)))), 1)]
     nodes.append(o)
 tour = {"clips": clips, "tracks": tracks, "nodes": nodes, "targets": cfg["targets"], "scope": cfg["scope"]}
 page = (here / "tour_template.html").read_text().replace("/*__TOUR__*/{}", json.dumps(tour, ensure_ascii=False, separators=(",", ":")))

@@ -23,7 +23,9 @@ button:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
 #menu, #where { z-index: 3; }
 #menu { right: max(12px, env(safe-area-inset-right, 0px)); top: 12px; display: flex; gap: 8px; background: none; padding: 0; }
 #menu button { position: static; min-height: 48px; min-width: 48px; border: 2px solid var(--muted); }
-#src { right: max(12px, env(safe-area-inset-right, 0px)); bottom: 10px; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; pointer-events: none; }
+#src { right: max(12px, env(safe-area-inset-right, 0px)); top: 68px; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; pointer-events: none; }
+#cue { left: 50%; bottom: 10px; transform: translateX(-50%); max-width: calc(100% - 24px); text-align: center; color: var(--muted); font-size: clamp(13px, 2vmin, 16px); font-weight: 650; pointer-events: none; }
+.lead { stroke: #fff; stroke-opacity: .85; stroke-width: 2; }
 #msg { left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; max-width: min(86%, 30em); font-size: clamp(16px, 2.6vmin, 22px); line-height: 1.3; padding: .8em 1em; }
 #msg a { color: var(--clean); }
 #jump { position: absolute; inset: 0; background: rgba(8,12,15,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
@@ -73,6 +75,7 @@ button:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
   <div id="where" class="chip"></div>
   <div id="menu" class="chip"><button id="routeBtn" class="chip" type="button">Roteiro</button><button id="scopeBtn" class="chip" type="button">Escopo</button></div>
   <div id="src" class="chip"></div>
+  <div id="cue" class="chip" hidden></div>
   <div id="sheet" hidden><div><span id="sItem"></span><span id="sDo"></span><span id="sLimit"></span></div><button id="sClose" type="button" aria-label="Fechar">✕</button></div>
   <div id="jump" hidden><b id="jumpTo"></b><span id="jumpNote"></span></div>
   <div id="routeList" class="list" hidden></div>
@@ -101,6 +104,8 @@ let room = 0;               // look direction fixed in the room: camera longitud
 let follow = 0;             // 1 = look along the route direction, 0 = hold the direction the person chose; eases between them
 let followGoal = 0;
 let sel = null, drawn = [], needTex = false, lastT = -1, jumpTimer = 0;
+let touched = false;        // the person dragged during this walk: never re-aim the view for them
+let aim = null;             // gentle re-framing toward the marked surfaces on a fresh arrival
 
 /* ---------- media: each clip arrives as a Blob, so the frames can be drawn in 3D even from a local file ---------- */
 const blobs = {};
@@ -180,6 +185,12 @@ function outlinesAt(t) {
   for (const id in tr) { const p = tr[id][i]; if (p) out.push({ id, p }); }
   return out;
 }
+function nearestCue(t) {
+  const tr = T.tracks[clipId] || {}, i = Math.round(t * FPS); let best = null;
+  for (const id in tr) for (const k in tr[id]) { const d = +k - i; if (best === null || Math.abs(d) < Math.abs(best)) best = d; }
+  if (best === null) return "Sem marcação confiável neste trecho.";
+  return "Sem marcação confiável neste quadro. A mais próxima fica a " + Math.max(1, Math.round(Math.abs(best) / FPS)) + " s " + (best > 0 ? "à frente." : "atrás.");
+}
 function frame() {
   requestAnimationFrame(frame);
   if (!GL || !ready || !clipId) return;
@@ -189,7 +200,8 @@ function frame() {
     vid.playbackRate = left < 0.8 ? 0.55 : 1;
     if (left <= 0.02) arrive();
   }
-  follow += (followGoal - follow) * (followGoal > follow ? 0.035 : 1);
+  follow += (followGoal - follow) * (followGoal > follow ? 0.02 : 1);
+  if (aim) { const k = 0.07; room = wrap(room + wrap(aim[0] - (room + rotAt(t))) * k); view.pitch += (aim[1] - view.pitch) * k; if (Math.abs(wrap(aim[0] - (room + rotAt(t)))) < 0.3) aim = null; }
   const held = room + rotAt(t);
   view.lon = wrap(follow > 0.002 ? lerpA(held, refAt(t), follow) : held);
   if (follow > 0.002) { room = wrap(view.lon - rotAt(t)); view.pitch += (-6 - view.pitch) * 0.03 * follow; }
@@ -218,14 +230,28 @@ function overlay(r, t) {
     const tg = T.targets[d.key];
     sv.append(el("polygon", { points: d.pts.map(q => q[0].toFixed(1) + "," + q[1].toFixed(1)).join(" "), class: "t-" + tg.kind + (sel === d.key ? " t-sel" : ""), "stroke-width": 4, "stroke-linejoin": "round" }));
   }
-  for (const d of drawn) {
-    const tg = T.targets[d.key], tx = el("text", { x: Math.max(40, Math.min(r.w - 40, d.c[0])), y: Math.max(16, Math.min(r.h - 12, d.c[1])), "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "tl tl-" + tg.kind });
+  const n = T.nodes[ni]; let arrowAt = null;
+  if (!leg && n.arrow && T.nodes[ni + 1] && isLeg(ni) && T.nodes[ni + 1].clip === clipId) { const a = pr(n.arrow[0] + rotAt(t) - rotAt(n.t), n.arrow[1]); if (a && a[0] > 30 && a[0] < r.w - 30 && a[1] > 30 && a[1] < r.h - 30) arrowAt = a; }
+  const placed = [];
+  for (const d of [...drawn].sort((a, b) => a.area - b.area)) {
+    const tg = T.targets[d.key], small = d.area < 3200;
+    const tx = el("text", { x: 0, y: 0, "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "tl tl-" + tg.kind });
     tx.textContent = tg.label; sv.append(tx);
+    const w = tx.getComputedTextLength() / 2 + 6, top = Math.min(...d.pts.map(q => q[1]));
+    let x = Math.max(w, Math.min(r.w - w, d.c[0])), y = small ? top - fs * 1.5 : d.c[1];
+    y = Math.max(62, Math.min(r.h - 16, y));
+    const hits = () => (arrowAt && Math.abs(x - arrowAt[0]) < w + 34 && y > arrowAt[1] - 44 && y < arrowAt[1] + 66) || placed.some(p => Math.abs(p[0] - x) < p[2] + w && Math.abs(p[1] - y) < fs * 1.25);
+    for (let k = 0; k < 6 && hits(); k++) y = y - fs * 1.35 < 62 ? y + fs * 1.35 * (k + 2) : y - fs * 1.35;
+    y = Math.max(62, Math.min(r.h - 16, y));
+    tx.setAttribute("x", x.toFixed(1)); tx.setAttribute("y", y.toFixed(1)); placed.push([x, y, w]); d.label = [x, y, w];
+    if (small || Math.abs(y - d.c[1]) > fs * 2) sv.insertBefore(el("line", { x1: d.c[0].toFixed(1), y1: (small ? top : d.c[1]).toFixed(1), x2: x.toFixed(1), y2: (y + (y < d.c[1] ? fs * 0.6 : -fs * 0.6)).toFixed(1), class: "lead" }), tx);
   }
-  const n = T.nodes[ni];                                    // path arrow: only at a stop, only toward a filmed continuation
-  if (!leg && n.arrow && T.nodes[ni + 1] && isLeg(ni)) {
-    const a = pr(n.arrow[0] + rotAt(t) - rotAt(n.t), n.arrow[1]);
-    if (a && a[0] > 30 && a[0] < r.w - 30 && a[1] > 30 && a[1] < r.h - 30) {
+  const cue = $("cue"), all = outlinesAt(t).length;
+  if (drawn.length || vid.paused === false) cue.hidden = true;
+  else { cue.hidden = false; cue.textContent = all ? "Há " + all + (all === 1 ? " área marcada" : " áreas marcadas") + " fora da vista: arraste para olhar em volta." : nearestCue(t); }                                    // path arrow: only at a stop, only toward a filmed continuation
+  if (arrowAt) {
+    const a = arrowAt;
+    {
       const g = el("g", { id: "arrow", transform: `translate(${a[0].toFixed(1)} ${a[1].toFixed(1)})`, style: "cursor:pointer" });
       g.append(el("circle", { r: 30 }), el("path", { d: "M-11 7 L0 -8 L11 7" }));
       const tx = el("text", { y: 50, "text-anchor": "middle", "font-size": fs }); tx.textContent = T.nodes[ni + 1].name; g.append(tx);
@@ -235,7 +261,8 @@ function overlay(r, t) {
 }
 
 /* ---------- route ---------- */
-const isLeg = i => T.nodes[i + 1] && T.nodes[i].clip === T.nodes[i + 1].clip && T.nodes[i + 1].t > T.nodes[i].t && !T.nodes[i + 1].cut;
+const isLeg = i => T.nodes[i + 1] && !T.nodes[i + 1].cut && ((T.nodes[i].clip === T.nodes[i + 1].clip && T.nodes[i + 1].t > T.nodes[i].t) || T.nodes[i + 1].cont);
+const framing = n => { const r = size(), a = r.h > r.w ? (n.frame || n.look) : (n.look || n.frame); return a || null; };
 function ui() {
   const n = T.nodes[ni], nx = T.nodes[ni + 1], playing = leg && !vid.paused;
   $("where").replaceChildren(leg ? "A caminho: " + T.nodes[leg.to].name : n.name);
@@ -252,11 +279,12 @@ async function showNode(i, keepView) {
   const n = T.nodes[i];
   try { if (!(await openAt(n.clip, n.t, my))) return; } catch (e) { return fail(); }
   followGoal = 0; follow = 0;
-  if (!keepView) { view.lon = n.look ? n.look[0] : refAt(n.t); view.pitch = n.look ? n.look[1] : -6; }
+  aim = null; touched = false;
+  if (!keepView) { const a = framing(n); view.lon = a ? a[0] : refAt(n.t); view.pitch = a ? a[1] : -6; }
   room = wrap(view.lon - rotAt(n.t));
   ui(); const nx = T.nodes[i + 1]; if (nx) loadClip(nx.clip).catch(() => {});
 }
-function arrive() { vid.pause(); vid.playbackRate = 1; ni = leg.to; leg = null; followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); needTex = true; ui(); }
+function arrive() { vid.pause(); vid.playbackRate = 1; ni = leg.to; leg = null; followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); needTex = true; if (!touched) aim = framing(T.nodes[ni]); ui(); }
 function go() {
   if (!ready) return;
   if (leg) {                                                // pause / continue in place: the video time is not touched
@@ -265,7 +293,13 @@ function go() {
   }
   const nx = T.nodes[ni + 1]; if (!nx) return;
   select(null);
-  if (isLeg(ni)) { leg = { to: ni + 1, end: nx.t }; followGoal = 1; vid.playbackRate = 1; vid.play().then(ui).catch(fail); return ui(); }
+  if (isLeg(ni)) {
+    aim = null; touched = false;
+    const start = () => { leg = { to: ni + 1, end: nx.t }; followGoal = 1; vid.playbackRate = 1; vid.play().then(ui).catch(fail); ui(); };
+    if (nx.clip === clipId) return start();
+    const my = ++gen, lon = view.lon;                      // same recording continues in the next file: keep the exact view
+    return openAt(nx.clip, 0, my).then(ok => { if (!ok) return; room = wrap(lon - rotAt(0)); follow = 0; start(); }).catch(fail);
+  }
   $("jumpTo").textContent = nx.name; $("jumpNote").textContent = nx.cut || "Mudança de local: o trecho entre estes dois pontos não foi filmado."; $("jump").hidden = false;
   const to = ni + 1; jumpTimer = setTimeout(() => showNode(to), 1800);
 }
@@ -290,7 +324,7 @@ stage.addEventListener("pointerdown", e => {
 stage.addEventListener("pointermove", e => {
   if (!ptr || e.pointerId !== ptr.id) return;
   if (!ptr.moved && Math.hypot(e.clientX - ptr.x0, e.clientY - ptr.y0) < 7) return;
-  if (!ptr.moved) { ptr.moved = true; stage.classList.add("drag"); followGoal = 0; follow = 0; room = wrap(view.lon - (ready ? rotAt(vid.currentTime) : 0)); }
+  if (!ptr.moved) { ptr.moved = true; touched = true; aim = null; stage.classList.add("drag"); followGoal = 0; follow = 0; room = wrap(view.lon - (ready ? rotAt(vid.currentTime) : 0)); }
   const f = focal(size());
   room = wrap(room - (e.clientX - ptr.x) / f / RAD);
   view.pitch = Math.max(-80, Math.min(80, view.pitch + (e.clientY - ptr.y) / f / RAD));
@@ -337,7 +371,7 @@ function lists() {
 function toggle(id) { const p = $(id), open = p.hidden; closeAll(); $("routeBtn").textContent = open && id === "routeList" ? "✕ Fechar" : "Roteiro"; $("scopeBtn").textContent = open && id === "scopeList" ? "✕ Fechar" : "Escopo"; if (open) { if (leg && !vid.paused) vid.pause(); p.hidden = false; p.scrollTop = 0; p.querySelectorAll("li.cur").forEach(x => x.classList.remove("cur")); const c = p.querySelector(`[data-node="${ni}"]`); if (c) c.parentNode.classList.add("cur"); } }
 $("routeBtn").addEventListener("click", () => toggle("routeList")); $("scopeBtn").addEventListener("click", () => toggle("scopeList"));
 
-window.__tour = { get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, sel, drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts })), arrow: drawn.arrow || null, gl: !!GL }; }, T };
+window.__tour = { get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, sel, cue: $("cue").hidden ? "" : $("cue").textContent, touched, drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), arrow: drawn.arrow || null, gl: !!GL }; }, T };
 initGL(); lists(); ui();
 if (!GL) fail(); else { requestAnimationFrame(frame); showNode(0); }
 </script>

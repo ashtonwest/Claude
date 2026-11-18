@@ -5,7 +5,8 @@ cid, v, t0, t1 = sys.argv[1], sys.argv[2], float(sys.argv[3]), float(sys.argv[4]
 LOOK = json.loads(sys.argv[5]) if len(sys.argv) > 5 else []   # [[source_seconds, camera_lon], ...] authored look directions
 CRF = sys.argv[6] if len(sys.argv) > 6 else "29"
 src = glob.glob(f"{S}/src/{v}/*.mp4")[0]; mp4 = f"{S}/tour/media/{cid}.mp4"
-subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(t0), "-i", src, "-t", str(t1 - t0), "-an", "-vf", "scale=1920:960,fps=30",
+import os
+if not os.path.exists(mp4): subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(t0), "-i", src, "-t", str(t1 - t0), "-an", "-vf", "scale=1920:960,fps=30",
   "-c:v", "libx264", "-preset", "slow", "-crf", CRF, "-g", "15", "-keyint_min", "15", "-sc_threshold", "0", "-pix_fmt", "yuv420p", "-movflags", "+faststart", mp4], check=True)
 W, H, FPS = 1280, 640, 10
 raw = subprocess.run(["ffmpeg", "-v", "error", "-i", mp4, "-vf", f"fps={FPS},scale={W}:{H}", "-pix_fmt", "gray", "-f", "rawvideo", "-"], stdout=subprocess.PIPE).stdout
@@ -42,6 +43,9 @@ if LOOK:
             j = max(n for n in range(len(ks)) if ks[n][0] <= i); (ia, la), (ib, lb) = ks[j], ks[j + 1]
             held = la + rot[i] - rot[ia]; miss = (((lb - (la + rot[ib] - rot[ia])) + 540) % 360) - 180
             Href[i] = held + miss * (i - ia) / max(1, ib - ia)   # room-fixed direction, eased toward the next authored look
+# smooth the look direction in room terms (about 2 s), so the camera does not swing while it walks
+fix = np.unwrap(np.radians(Href - rot)); k2 = np.hanning(21); k2 /= k2.sum()
+fix = np.convolve(np.pad(fix, 10, mode="edge"), k2, "valid"); Href = np.degrees(fix) + rot
 json.dump({"id": cid, "video": v, "t0": t0, "t1": t1, "fps": FPS, "ref": [round(float(((x + 180) % 360) - 180), 1) for x in Href], "rot": [round(float(x), 1) for x in rot],
            "walk": [int(w) for w in walking], "a": [round(float(x), 2) for x in am]}, open(f"{S}/tour/data/{cid}.json", "w"))
 import os; print(cid, len(fr), "frames@10fps", round(os.path.getsize(mp4) / 1e6, 2), "MB", "walking %", round(100 * walking.mean()))
