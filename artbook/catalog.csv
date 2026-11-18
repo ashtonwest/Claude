@@ -1,0 +1,20 @@
+id,file,title,date,date_source,medium,style,crop,rotate,enhance,include,cover,duplicate_of,notes,source_name,sha256
+A0001,A0001.jpg,Arrowhead Totem,2026-11-17,signed,Ink on paper,Abstract - geometric,"2,1,97,97",,paper,yes,,,,01_137729.jpg,675bd53aee04674aca000de4cfeeecb4bb602b34eccfcc25af13a9ea3384b962
+A0002,A0002.jpg,Stair and Wave,2026-11-17,signed,Ink on paper,Abstract - geometric,"7,3,93.5,95.5",,paper,yes,,,,02_137728.jpg,96fcff31182010d07a02265c446aa1afaea03f4c10eae1333cbcc197d4af82c2
+A0003,A0003.jpg,Man in a Hat,2026-11-17,photo,Ink on paper,Portrait,"5,5,91,96",,paper,yes,,,,03_137727.jpg,e1f69688e2098e43ccb692c6604f50daa959c8079b22c6862fb7744a086e1888
+A0004,A0004.jpg,"Blue, Gold and Violet",2024-05,signed,Coloured pencil,Abstract - organic,,,,yes,,,,04_all_457.jpg,e2ae09f734e40637ce2bfa2653664399dfb4e493ffce55485b63e8b70f1a54b5
+A0005,A0005.jpg,Blue and Orange Tree,2024-05,signed,Coloured pencil,Abstract - organic,,,paper,yes,,,,05_all_462.jpg,2ac28eff8db8cb6607b662aeb9465ce361c2914725657c4f8a8342291546d494
+A0006,A0006.jpg,Portrait in Colour,2024-05,photo,Crayon / pastel,Portrait,,,,yes,,,,06_all_497.jpg,001df4b27aa37aa3abb5ba25987fd37bcdc9f96491bbbe1101c4b02937f1cbbd
+A0007,A0007.jpg,Red Faces,2024-05,signed,Crayon / pastel,Faces,,,,yes,,,signature reads sideways; piece may be meant landscape (rotate=270),07_all_512.jpg,d37f9a306f1e0f46194a650cb07980f7bf636a4785acdfcdf7607980446bb9af
+A0008,A0008.png,"Faces in Yellow, Cyan and Magenta",2025,guess,Digital,Faces,,,,yes,,,signature has a year that looks like 25; confirm,08_all_750.png,fb174d5ca95106ea607b49b305104e44a477ef6121bc6b6ccdc77d255136e50d
+A0009,A0009.png,Purple Field,,,Digital,Abstract - organic,,,,yes,,,,09_all_747.png,950eb115049f9173f3f4a05a8093ec6b868bbcf91e6ec95caf8738666e109255
+A0010,A0010.png,Blue and Crimson,,,Digital,Abstract - organic,,,,yes,yes,,,10_all_748.png,c6960841f4432efe3ffddaed152efaa3ba23466dee1cf3561624c438bb5c5c89
+A0011,A0011.png,Colour and White,,,Digital,Abstract - organic,,,,yes,,,,11_all_749.png,33bc4cd1f945c9ddde8847997e1fcb73136ff32acc9635cea3384ae87857898e
+A0012,A0012.png,Rainbow Lines,2022,signed,Digital,Abstract - geometric,,,,yes,,,,12_all_746.png,fb2d795da844dab4409728860842b87e3e0707b406c2133b8c2312143adf510a
+A0013,A0013.png,Colour and White (top half),,,Digital,Abstract - organic,,,,no,,A0011,looks like the same piece as A0011,13_all_741.png,2dee7ef67ff3cb93540d71c16be9f3b925caddc45d740f91d8973df1e1edda86
+A0014,A0014.png,Colour and White (bottom half),,,Digital,Abstract - organic,,,,no,,A0011,looks like the same piece as A0011,14_all_742.png,95c9fd088d2d8bc43b5d43c70f41f988b27339ebcf83a8574f365a434c841b19
+A0015,A0015.webp,Feathers,2024-05,signed,Ink on paper,Abstract - organic,"4.5,22.5,89.5,74.5",,paper,yes,,,,15_all_538.webp,92af6240956b53a28c6e798c8a5172d076c4cee44e5cdac1acf5c1143a80d357
+A0016,A0016.jpg,White Bloom,2024-05,signed,White ink on purple paper,Abstract - organic,"19.5,1,74,98",,,yes,,,,16_all_788.jpg,e8f36e185424e20bd64cf187ce182e24f29cca99e9a3b6f18336034e98cbb415
+A0017,A0017.jpg,Seed Head (uncropped photo),2024-04,signed,White ink on purple paper,Abstract - organic,,,,no,,A0019,wider upside-down photo of A0019,17_all_786.jpg,5175260470ce2322f87dc30a4eb79e1cac00705ff040b7359e019f5e69d7b0a8
+A0018,A0018.jpg,Rain Cloud,2024-03,signed,White ink on purple paper,Abstract - organic,,,,yes,,,,18_all_785.jpg,bc454af351050eec10921f076bd59d6266af5a0d5b706477348058de083c6b8a
+A0019,A0019.jpg,Seed Head,2024-04,signed,White ink on purple paper,Abstract - organic,,,,yes,,,,19_all_787.jpg,f85f2ef21669bced13d6a86992914328d4f42611a01704f21f52fb57caa1b706
