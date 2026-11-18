@@ -4,5 +4,7 @@
   "screen_width": 1264,
   "screen_height": 1680,
   "grayscale": false,
-  "jpeg_quality": 88
+  "jpeg_quality": 90,
+  "color_boost": 1.6,
+  "contrast_boost": 1.15
 }

@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
 
 try:  # optional: lets phone HEIC photos be read
     import pillow_heif
@@ -48,7 +48,9 @@ DEFAULT_CONFIG = {
     "screen_width": 1264,
     "screen_height": 1680,
     "grayscale": False,
-    "jpeg_quality": 88,
+    "jpeg_quality": 90,
+    "color_boost": 1.6,
+    "contrast_boost": 1.15,
 }
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -237,21 +239,39 @@ def render(row, cfg, size=None):
         im = im.rotate(-float(row["rotate"]), expand=True, fillcolor="white")
     if row["enhance"] == "paper":
         im = whiten_paper(im)
-    if cfg["grayscale"]:
-        im = ImageOps.autocontrast(im.convert("L"), cutoff=1).convert("RGB")
     im.thumbnail(size or (cfg["screen_width"], cfg["screen_height"]), Image.LANCZOS)
-    return im
+    return tune_for_screen(im, cfg)
 
 
 def whiten_paper(im):
-    """Photos of white paper come out grey or yellow; pull the paper back to white."""
+    """Photos of paper come out grey, yellow or unevenly lit; flatten the paper to white."""
+    import cv2
     import numpy as np
     a = np.asarray(im).astype("float32")
-    small = np.asarray(im.resize((200, 200))).reshape(-1, 3).astype("float32")
-    paper = np.percentile(small, 70, axis=0)  # paper is the dominant light tone
-    a = a / paper * 250.0
-    a = (a - 20) * (255 / 235.0)  # deepen the ink a little
+    h, w = a.shape[:2]
+    scale = 500 / max(h, w)
+    small = cv2.resize(a, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    # the brightest tone around each spot is the bare paper there, shadows included
+    paper = cv2.dilate(small, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41)))
+    paper = cv2.resize(cv2.GaussianBlur(paper, (0, 0), 25), (w, h), interpolation=cv2.INTER_LINEAR)
+    a = a / np.maximum(paper, 1) * 255
+    a = (a - 30) * (255 / 200.0)  # paper grain to pure white, ink a little deeper
     return Image.fromarray(a.clip(0, 255).astype("uint8"))
+
+
+def is_monochrome(im):
+    import numpy as np
+    a = np.asarray(im.resize((120, 120))).astype("int16")
+    return (a.max(axis=2) - a.min(axis=2)).mean() < 10
+
+
+def tune_for_screen(im, cfg):
+    """Colour e-ink is pale and coarse: black-and-white work goes out as crisp
+    greyscale, colour work gets extra saturation and contrast to compensate."""
+    if cfg["grayscale"] or is_monochrome(im):
+        return ImageOps.autocontrast(im.convert("L"), cutoff=0.5).convert("RGB")
+    im = ImageEnhance.Color(im).enhance(cfg["color_boost"])
+    return ImageEnhance.Contrast(im).enhance(cfg["contrast_boost"])
 
 
 def pretty_date(d):
@@ -312,56 +332,60 @@ def cmd_sheet(args):
 
 
 # ---------------------------------------------------------------- epub
+# Every page is one full-screen picture (fixed layout), so the Kobo cannot
+# rescale, re-margin or reflow anything: what is drawn here is what shows.
 
-CSS = """
-body { margin: 0; padding: 0; text-align: center; font-family: sans-serif; }
-h1 { font-size: 1.5em; margin: 1em 0 0.3em; }
-h2 { font-size: 1.15em; margin: 1.2em 0 0.4em; border-bottom: 1px solid #999; }
-p.cap { font-size: 0.7em; margin: 0.5em 0 0; line-height: 1.3; }
-p.cap b { font-size: 1.15em; }
-p.links { font-size: 0.6em; margin: 0.3em 0 0; color: #555; }
-div.art { margin: 0; padding: 0; }
-div.art img, div.cover img { display: block; margin: 0 auto; }
-div.divider { margin-top: 35%; }
-div.divider p { font-size: 0.9em; color: #555; }
-a { color: inherit; }
-div.tile { display: inline-block; width: 30%; margin: 0 1% 0.8em; vertical-align: top;
-           font-size: 0.6em; line-height: 1.2; }
-div.tile img { max-width: 100%; max-height: 9em; }
-div.tile a { text-decoration: none; }
-p.big { font-size: 1.1em; margin: 1em 0; }
-"""
+def fit_text(draw, text, size, bold, max_width):
+    while size > 16 and draw.textlength(text, font=font(size, bold)) > max_width:
+        size -= 2
+    return font(size, bold)
 
 
-def page(title, body):
-    return ('<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
-            '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">'
-            f'<head><meta charset="utf-8"/><title>{html.escape(title)}</title>'
-            '<link rel="stylesheet" type="text/css" href="style.css"/></head>'
-            f'<body>{body}</body></html>')
+def art_page(row, cfg):
+    sw, sh = cfg["screen_width"], cfg["screen_height"]
+    margin, caption = round(sw * 0.02), round(sh * 0.085)
+    art = render(row, cfg, (sw - 2 * margin, sh - caption - 2 * margin))
+    pg = Image.new("RGB", (sw, sh), "white")
+    pg.paste(art, ((sw - art.width) // 2, margin + (sh - caption - 2 * margin - art.height) // 2))
+    draw = ImageDraw.Draw(pg)
+    when = pretty_date(row["date"])
+    if row["date"] and row["date_source"] == "circa":
+        when = "c. " + when
+    details = "  \u00b7  ".join([when] + [row[k] for k in ("medium", "style") if row[k]])
+    y = sh - caption
+    draw.text((sw // 2, y + caption * 0.30), row["title"], fill="black", anchor="mm",
+              font=fit_text(draw, row["title"], round(sh * 0.026), True, sw - 80))
+    draw.text((sw // 2, y + caption * 0.70), details, fill="#222222", anchor="mm",
+              font=fit_text(draw, details, round(sh * 0.019), False, sw - 80))
+    return pg
 
 
-# (screen scale, jpeg quality) steps tried in turn when a size limit is given
-SHRINK_STEPS = [(1.0, 88), (1.0, 78), (1.0, 68), (0.85, 68), (0.85, 58), (0.75, 55), (0.65, 50), (0.65, 44), (0.6, 42)]
+def divider_page(name, count, cfg):
+    sw, sh = cfg["screen_width"], cfg["screen_height"]
+    pg = Image.new("RGB", (sw, sh), "white")
+    draw = ImageDraw.Draw(pg)
+    draw.text((sw // 2, sh * 0.44), name, fill="black", anchor="mm",
+              font=fit_text(draw, name, round(sh * 0.11), True, sw - 120))
+    draw.line((sw * 0.3, sh * 0.53, sw * 0.7, sh * 0.53), fill="black", width=4)
+    draw.text((sw // 2, sh * 0.58), f"{count} piece{'s' if count != 1 else ''}", fill="#222222",
+              anchor="mm", font=font(round(sh * 0.028)))
+    return pg
+
+
+def cover_page(row, cfg):
+    sw, sh = cfg["screen_width"], cfg["screen_height"]
+    art = render(row, cfg, (sw - 120, sh - 420))
+    pg = Image.new("RGB", (sw, sh), "white")
+    pg.paste(art, ((sw - art.width) // 2, 80 + (sh - 420 - art.height) // 2))
+    draw = ImageDraw.Draw(pg)
+    draw.text((sw // 2, sh - 230), cfg["title"], fill="black", font=font(76, True), anchor="mm")
+    if cfg["author"]:
+        draw.text((sw // 2, sh - 130), cfg["author"], fill="#333333", font=font(46), anchor="mm")
+    return pg
 
 
 def cmd_build(args):
-    """Build the book; with --max-mb, step quality down until the file fits."""
-    base = load_config()
-    for scale, quality in SHRINK_STEPS if args.max_mb else [(1.0, base["jpeg_quality"])]:
-        cfg = dict(base, jpeg_quality=quality, screen_width=int(base["screen_width"] * scale),
-                   screen_height=int(base["screen_height"] * scale))
-        out = build_book(args, cfg)
-        size = out.stat().st_size / 1e6
-        if not args.max_mb or size <= args.max_mb:
-            break
-    else:
-        print(f"Could not get under {args.max_mb} MB; smallest is {size:.1f} MB.")
-    print(f"{out}  ({size:.1f} MB, {cfg['screen_width']}x{cfg['screen_height']}, "
-          f"quality {cfg['jpeg_quality']}, chapters by {args.sort})")
-
-
-def build_book(args, cfg):
+    cfg = load_config()
     if args.gray:
         cfg["grayscale"] = True
     rows = [r for r in load_catalog() if included(r)]
@@ -369,98 +393,51 @@ def build_book(args, cfg):
         sys.exit("Nothing to build: the catalog has no included pieces.")
     e = html.escape
     sw, sh = cfg["screen_width"], cfg["screen_height"]
-    files = {}  # path inside the book -> bytes
-    manifest, spine, nav_items = [], [], []
+    files, manifest, spine, nav_items = {}, [], [], []
 
-    def add_page(name, title, body, props=""):
-        files[name] = page(title, body).encode("utf-8")
-        manifest.append((name, "application/xhtml+xml", props))
-        spine.append(name)
-
-    def jpeg(im):
+    def add_page(name, title, im, cover=False):
         import io
         buf = io.BytesIO()
-        im.save(buf, "JPEG", quality=cfg["jpeg_quality"], optimize=True, progressive=True)
-        return buf.getvalue()
+        if is_monochrome(im):
+            im = im.convert("L")  # smaller file, and e-ink shows pure greys at full sharpness
+        im.save(buf, "JPEG", quality=cfg["jpeg_quality"], optimize=True)
+        files[f"img/{name}.jpg"] = buf.getvalue()
+        manifest.append((f"img/{name}.jpg", "image/jpeg", "cover-image" if cover else ""))
+        files[f"{name}.xhtml"] = (
+            '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
+            '<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8"/>'
+            f'<title>{e(title)}</title><meta name="viewport" content="width={sw}, height={sh}"/>'
+            '<link rel="stylesheet" type="text/css" href="style.css"/></head>'
+            f'<body><img src="img/{name}.jpg" alt="{e(title)}" width="{sw}" height="{sh}"/></body></html>'
+        ).encode("utf-8")
+        manifest.append((f"{name}.xhtml", "application/xhtml+xml", ""))
+        spine.append(f"{name}.xhtml")
 
-    # images
-    sizes = {}
-    for r in rows:
-        im = render(r, cfg, (sw, int(sh * 0.9)))  # leave room for the caption
-        sizes[r["id"]] = im.size
-        files[f"img/{r['id']}.jpg"] = jpeg(im)
-        manifest.append((f"img/{r['id']}.jpg", "image/jpeg", ""))
-        im.thumbnail((220, 220), Image.LANCZOS)
-        files[f"thumb/{r['id']}.jpg"] = jpeg(im)
-        manifest.append((f"thumb/{r['id']}.jpg", "image/jpeg", ""))
-
-    # cover: chosen piece on a plain page with the title under it
     cover_row = next((r for r in rows if r["cover"].lower() in ("yes", "y", "true", "1")), rows[0])
-    art = render(cover_row, cfg, (sw - 120, sh - 420))
-    cover = Image.new("RGB", (sw, sh), "white")
-    cover.paste(art, ((sw - art.width) // 2, 80 + (sh - 420 - art.height) // 2))
-    draw = ImageDraw.Draw(cover)
-    draw.text((sw // 2, sh - 230), cfg["title"], fill="black", font=font(76, True), anchor="mm")
-    if cfg["author"]:
-        draw.text((sw // 2, sh - 130), cfg["author"], fill="#333333", font=font(46), anchor="mm")
-    files["img/cover.jpg"] = jpeg(cover)
-    manifest.append(("img/cover.jpg", "image/jpeg", "cover-image"))
-    add_page("cover.xhtml", cfg["title"],
-             f'<div class="cover"><img src="img/cover.jpg" alt="{e(cfg["title"])}" style="width:100%"/></div>')
+    add_page("cover", cfg["title"], cover_page(cover_row, cfg), cover=True)
     nav_items.append(("cover.xhtml", "Cover", []))
 
-    # front page with the three ways in
-    add_page("start.xhtml", cfg["title"],
-             f'<h1>{e(cfg["title"])}</h1><p>{e(cfg["author"])}</p>'
-             f'<p>{len(rows)} pieces</p>'
-             '<p class="big"><a href="idx-date.xhtml">Browse by date</a></p>'
-             '<p class="big"><a href="idx-style.xhtml">Browse by style</a></p>'
-             '<p class="big"><a href="idx-medium.xhtml">Browse by medium</a></p>')
-    nav_items.append(("start.xhtml", "Start", []))
-
-    for field in ("date", "style", "medium"):
-        body = [f"<h1>By {field}</h1>"]
-        for name, members in grouped(rows, field, args.reverse and field == args.sort):
-            body.append(f"<h2>{e(name)} ({len(members)})</h2><div>")
-            for r in members:
-                body.append(f'<div class="tile"><a href="{r["id"]}.xhtml">'
-                            f'<img src="thumb/{r["id"]}.jpg" alt=""/><br/>{e(r["title"])}</a></div>')
-            body.append("</div>")
-        add_page(f"idx-{field}.xhtml", f"By {field}", "".join(body))
-        nav_items.append((f"idx-{field}.xhtml", f"Browse by {field}", []))
-
-    # the pieces, in the chosen order, one chapter per group
+    # one chapter per group, pieces in date order inside it
     for gi, (name, members) in enumerate(grouped(rows, args.sort, args.reverse)):
-        div = f"group-{gi + 1:02d}.xhtml"
-        add_page(div, name, f'<div class="divider"><h1>{e(name)}</h1>'
-                            f'<p>{len(members)} piece{"s" if len(members) != 1 else ""}</p></div>')
+        div = f"chapter-{gi + 1:02d}"
+        add_page(div, name, divider_page(name, len(members), cfg))
         children = []
         for r in members:
-            w, h = sizes[r["id"]]
-            # width that keeps the whole piece plus caption on one 3:4 screen
-            pct = max(20, min(100, round(100 * (0.86 * sh / sw) * (w / h))))
-            when = pretty_date(r["date"])
-            if r["date"] and r["date_source"] == "circa":
-                when = "c. " + when
-            bits = [when] + [r[k] for k in ("medium", "style") if r[k]]
-            body = (f'<div class="art"><img src="img/{r["id"]}.jpg" alt="{e(r["title"])}" '
-                    f'style="width:{pct}%"/></div>'
-                    f'<p class="cap"><b>{e(r["title"])}</b><br/>{e(" · ".join(bits))}</p>'
-                    '<p class="links"><a href="idx-date.xhtml">date</a> · '
-                    '<a href="idx-style.xhtml">style</a> · '
-                    '<a href="idx-medium.xhtml">medium</a></p>')
-            add_page(f"{r['id']}.xhtml", r["title"], body)
+            add_page(r["id"], r["title"], art_page(r, cfg))
             children.append((f"{r['id']}.xhtml", r["title"], []))
-        nav_items.append((div, name, children))
+        nav_items.append((f"{div}.xhtml", name, children))
 
-    # navigation
     def nav_list(items):
         out = ["<ol>"]
         for href, label, kids in items:
             out.append(f'<li><a href="{href}">{e(label)}</a>{nav_list(kids) if kids else ""}</li>')
         return "".join(out) + "</ol>"
 
-    files["nav.xhtml"] = page("Contents", f'<nav epub:type="toc" id="toc"><h1>Contents</h1>{nav_list(nav_items)}</nav>').encode()
+    files["nav.xhtml"] = (
+        '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
+        '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">'
+        f'<head><meta charset="utf-8"/><title>Contents</title><meta name="viewport" content="width={sw}, height={sh}"/></head>'
+        f'<body><nav epub:type="toc" id="toc"><h1>Contents</h1>{nav_list(nav_items)}</nav></body></html>').encode()
     manifest.append(("nav.xhtml", "application/xhtml+xml", "nav"))
 
     book_id = "urn:uuid:" + str(uuid.uuid5(uuid.NAMESPACE_URL, "artbook:" + cfg["title"] + cfg["author"]))
@@ -481,7 +458,7 @@ def build_book(args, cfg):
                         f'</head><docTitle><text>{e(cfg["title"])}</text></docTitle>'
                         f'<navMap>{ncx_points(nav_items)}</navMap></ncx>').encode()
     manifest.append(("toc.ncx", "application/x-dtbncx+xml", ""))
-    files["style.css"] = CSS.encode()
+    files["style.css"] = b"html, body { margin: 0; padding: 0; } img { display: block; }\n"
     manifest.append(("style.css", "text/css", ""))
 
     items = "".join(
@@ -497,14 +474,16 @@ def build_book(args, cfg):
         f'<dc:title>{e(cfg["title"])}</dc:title><dc:language>en</dc:language>'
         + (f'<dc:creator>{e(cfg["author"])}</dc:creator>' if cfg["author"] else "")
         + f'<meta property="dcterms:modified">{now}</meta>'
+        '<meta property="rendition:layout">pre-paginated</meta>'
+        '<meta property="rendition:orientation">portrait</meta>'
+        '<meta property="rendition:spread">none</meta>'
         f'<meta name="cover" content="{ids["img/cover.jpg"]}"/></metadata>'
         f'<manifest>{items}</manifest>'
         f'<spine toc="{ids["toc.ncx"]}">' + "".join(f'<itemref idref="{ids[s]}"/>' for s in spine)
         + '</spine></package>').encode()
 
     BUILD.mkdir(exist_ok=True)
-    slug = "-".join("".join(c if c.isalnum() else " " for c in cfg["title"]).lower().split()) or "artbook"
-    out = BUILD / f"{slug}.kepub.epub"  # one book; --sort decides its chapters
+    out = BUILD / f"{cfg['title']}.kepub.epub"
     with zipfile.ZipFile(out, "w") as z:
         z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
         z.writestr("META-INF/container.xml",
@@ -515,7 +494,7 @@ def build_book(args, cfg):
         for name, data in files.items():
             store = zipfile.ZIP_STORED if name.endswith(".jpg") else zipfile.ZIP_DEFLATED
             z.writestr("OEBPS/" + name, data, store)
-    return out
+    print(f"{out}  ({len(rows)} pieces, {out.stat().st_size / 1e6:.1f} MB, chapters by {args.sort})")
 
 
 def main():
@@ -532,7 +511,6 @@ def main():
     b.add_argument("--sort", choices=["date", "style", "medium"], default="date")
     b.add_argument("--reverse", action="store_true")
     b.add_argument("--gray", action="store_true", help="grayscale, for black-and-white Kobos")
-    b.add_argument("--max-mb", type=float, help="shrink images until the book is under this size")
     b.set_defaults(fn=cmd_build)
     args = ap.parse_args()
     args.fn(args)
