@@ -4,59 +4,72 @@
 /* Layout: one real view fills the screen; a caption band and two large controls sit under it (beside it on a phone held sideways). */
 :root {
   color-scheme: dark;
-  --bg: #0e1418;          /* blue-black, keeps the photo dominant */
+  --bg: #0e1418;
   --panel: #16212a;
   --line: #2b3b47;
   --fg: #f3f6f8;
   --muted: #a9b8c3;
   --clean: #19e0c3;       /* surface to clean */
   --stop: #ff5a3c;        /* where cleaning stops / not included */
-  --warn: #ffc53d;        /* scope not yet confirmed */
+  --warn: #ffc53d;        /* pending or to confirm */
   --btn: #f3f6f8;
   --btn-fg: #0e1418;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 html, body { height: 100%; }
 body {
-  background: var(--bg); color: var(--fg); font-family: var(--font);
+  margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font);
   display: flex; flex-direction: column; overflow: hidden;
-  -webkit-user-select: none; user-select: none;
+  -webkit-user-select: none; user-select: none; -webkit-text-size-adjust: 100%;
 }
-#stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; }
-#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; }
+#stage.pano { touch-action: none; cursor: grab; }
+#stage.pano.drag { cursor: grabbing; }
+#gl, #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.chip {
+  position: absolute; background: rgba(14,20,24,.82); color: var(--fg); border-radius: 6px;
+  font-weight: 700; font-size: clamp(14px, 2.2vmin, 18px); padding: .4em .75em;
+}
 #room {
-  position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: 12px;
-  background: rgba(14,20,24,.82); color: var(--fg);
+  left: max(12px, env(safe-area-inset-left, 0px)); top: 12px;
   font-weight: 800; font-size: clamp(18px, 3.2vmin, 30px); letter-spacing: .01em;
-  padding: .35em .7em; border-radius: 6px; border-left: 6px solid var(--clean);
-  max-width: calc(100% - 24px);
+  padding: .35em .7em; border-left: 6px solid var(--clean); max-width: calc(100% - 24px);
 }
-#turn {
-  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); white-space: nowrap;
-  background: rgba(14,20,24,.82); color: var(--fg); font-size: 15px; font-weight: 650; padding: .35em .8em; border-radius: 999px;
+#phase { right: max(12px, env(safe-area-inset-right, 0px)); bottom: 12px; color: var(--muted); }
+#recenter {
+  left: max(12px, env(safe-area-inset-left, 0px)); bottom: 12px; min-height: 48px; min-width: 48px;
+  border: 2px solid var(--muted); cursor: pointer; font-family: inherit;
 }
+#recenter:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
+#turn { left: 50%; bottom: 10px; transform: translateX(-50%); white-space: nowrap; border-radius: 999px; font-weight: 650; font-size: 15px; }
+#card {
+  position: absolute; inset: 0; overflow: auto; background: var(--bg);
+  padding: 64px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
+}
+#card ul { list-style: none; margin: 0 auto; padding: 0; max-width: 60em; display: flex; flex-direction: column; gap: 10px; }
+#card li { background: var(--panel); border-left: 6px solid var(--warn); border-radius: 6px; padding: .6em .8em; font-size: clamp(16px, 2.8vmin, 24px); line-height: 1.3; }
+#card li b { display: block; color: var(--warn); font-size: .8em; letter-spacing: .03em; }
 #panel {
   flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--line);
-  display: flex; flex-direction: column; gap: 10px;
-  padding-block: 12px;
+  display: flex; flex-direction: column; gap: 10px; padding-block: 12px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 #text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#item { font-size: clamp(15px, 2.6vmin, 22px); font-weight: 700; color: var(--muted); letter-spacing: .02em; }
 #do { font-size: clamp(20px, 4.2vmin, 40px); font-weight: 750; line-height: 1.2; margin: 0; text-wrap: balance; }
 #limit { font-size: clamp(17px, 3.4vmin, 32px); font-weight: 650; line-height: 1.25; margin: 0; color: var(--stop); }
 #limit:empty { display: none; }
-#chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-#item { font-size: clamp(15px, 2.6vmin, 22px); font-weight: 700; color: var(--muted); letter-spacing: .02em; }
 #status {
-  align-self: flex-start; font-size: clamp(13px, 1.9vmin, 17px); font-weight: 750; letter-spacing: .06em; text-transform: uppercase;
+  font-size: clamp(13px, 1.9vmin, 17px); font-weight: 750; letter-spacing: .06em; text-transform: uppercase;
   color: #1a1400; background: var(--warn); padding: .2em .55em; border-radius: 4px;
 }
 #nav { display: flex; gap: 12px; align-items: stretch; }
 #nav button {
   flex: 1 1 0; min-height: 64px; border: 0; border-radius: 10px; cursor: pointer;
   font: inherit; font-size: clamp(20px, 3.2vmin, 30px); font-weight: 800;
-  background: var(--btn); color: var(--btn-fg);
+  background: var(--btn); color: var(--btn-fg); touch-action: manipulation;
 }
 #nav button#prev { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 2px var(--muted); }
 #nav button:disabled { opacity: .3; cursor: default; }
@@ -64,25 +77,28 @@ body {
 #count { flex: 0 0 auto; align-self: center; min-width: 3.6em; text-align: center; color: var(--muted); font-size: clamp(15px, 2.2vmin, 20px); font-weight: 650; font-variant-numeric: tabular-nums; }
 @media (orientation: landscape) and (max-height: 560px) {
   body { flex-direction: row; }
-  #panel { width: 36%; max-width: 380px; border-top: 0; border-left: 1px solid var(--line); justify-content: space-between; padding-left: 14px; }
-  #nav { flex-wrap: wrap; }
-  #nav button { min-height: 56px; flex-basis: 100%; order: 2; }
+  #panel { width: 36%; max-width: 380px; border-top: 0; border-left: 1px solid var(--line); justify-content: space-between; padding-left: 14px; overflow: auto; }
+  #do { font-size: 19px; } #limit { font-size: 16px; } #item { font-size: 14px; }
+  #nav { flex-wrap: wrap; gap: 8px; }
+  #nav button { min-height: 52px; flex-basis: 100%; order: 2; }
   #nav button#next { order: 1; }
   #count { order: 3; flex-basis: 100%; }
 }
 .shape-clean { fill: var(--clean); fill-opacity: .30; stroke: var(--clean); stroke-linejoin: round; }
 .shape-out { fill: url(#hatch); stroke: var(--stop); stroke-linejoin: round; }
 .shape-note { fill: none; stroke: var(--warn); stroke-linejoin: round; }
+.shape-trace { fill: none; stroke: var(--clean); stroke-opacity: .9; stroke-linecap: round; stroke-linejoin: round; }
+.shape-under { fill: none; stroke: #000; stroke-opacity: .5; stroke-linecap: round; stroke-linejoin: round; }
 .shape-stop { fill: none; stroke: var(--stop); stroke-linecap: round; }
-.shape-stop-under { fill: none; stroke: #000; stroke-opacity: .55; stroke-linecap: round; }
 .lbl { font-family: var(--font); font-weight: 800; paint-order: stroke; stroke: #000; stroke-opacity: .8; stroke-linejoin: round; }
-.lbl-clean { fill: var(--clean); }
-.lbl-stop, .lbl-out { fill: #fff; }
+.lbl-clean, .lbl-trace { fill: var(--clean); }
 .lbl-note { fill: var(--warn); }
+.lbl-stop, .lbl-out { fill: #fff; }
 .lblbox-stop, .lblbox-out { fill: var(--stop); }
 </style>
 
 <div id="stage">
+  <canvas id="gl" hidden></canvas>
   <svg id="view" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="do">
     <defs>
       <pattern id="hatch" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -93,8 +109,11 @@ body {
     <image id="img" x="0" y="0" width="1600" height="900" preserveAspectRatio="none"></image>
     <g id="shapes"></g>
   </svg>
-  <div id="room"></div>
-  <div id="turn" hidden>↻ Vire o celular de lado para ver maior</div>
+  <div id="card" hidden></div>
+  <div id="room" class="chip"></div>
+  <div id="phase" class="chip" hidden></div>
+  <button id="recenter" class="chip" type="button" hidden>↺ Voltar ao alvo</button>
+  <div id="turn" class="chip" hidden>↻ Vire o celular de lado para ver maior</div>
 </div>
 <div id="panel">
   <div id="text">
@@ -111,83 +130,276 @@ body {
 
 <script>
 const STOPS = /*__STOPS__*/[];
-const W = 1600, H = 900, NS = "http://www.w3.org/2000/svg";
+const W = 1600, H = 900, NS = "http://www.w3.org/2000/svg", RAD = Math.PI / 180;
+const WIDE_MS = 1300, ZOOM_MS = 1900, PAN_YAW = 40, PAN_PITCH = 25;
 const $ = id => document.getElementById(id);
 let i = 0;
+let token = 0;    // changes on every navigation: cancels timers, loads and transitions of the stop left behind
+let motion = 0;   // changes whenever a new camera movement starts or the person drags
+let mode = "flat", cur = null, drag = null;
 
 function el(name, attrs) {
   const n = document.createElementNS(NS, name);
   for (const k in attrs) n.setAttribute(k, attrs[k]);
   return n;
 }
+function stageSize() { const r = $("stage").getBoundingClientRect(); return { w: Math.max(1, r.width), h: Math.max(1, r.height) }; }
 
-// Choose the visible part of the photo: the whole view when it fits, otherwise a crop that keeps every marked shape on screen.
-function viewBoxFor(stop) {
-  const r = $("stage").getBoundingClientRect();
-  const aspect = r.width / Math.max(1, r.height);
+/* ---------- shapes (shared by the flat view and the look-around view) ---------- */
+function paint(shapes, map, sw, fs) {
+  const g = $("shapes"); g.replaceChildren();
+  const ready = [];
+  for (const s of shapes) {
+    const pts = s.pts.map(map);
+    if (pts.some(p => !p)) continue;
+    const str = pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+    if (s.type === "stop") {
+      g.append(el("polyline", { points: str, class: "shape-under", "stroke-width": sw * 2.6 }));
+      g.append(el("polyline", { points: str, class: "shape-stop", "stroke-width": sw * 1.5, "stroke-dasharray": `${sw * 3.2} ${sw * 2.6}` }));
+    } else if (s.type === "trace") {
+      g.append(el("polyline", { points: str, class: "shape-under", "stroke-width": sw * 2.4 }));
+      g.append(el("polyline", { points: str, class: "shape-trace", "stroke-width": sw * 1.4 }));
+    } else {
+      g.append(el("polygon", { points: str, class: "shape-" + s.type, "stroke-width": sw }));
+    }
+    ready.push(s);
+  }
+  for (const s of ready) {
+    if (!s.label || !s.at) continue;
+    const a = map(s.at); if (!a) continue;
+    const boxed = s.type === "stop" || s.type === "out";
+    const t = el("text", { x: a[0], y: a[1], "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "lbl lbl-" + s.type, "stroke-width": boxed ? 0 : fs * 0.22 });
+    t.textContent = s.label;
+    g.append(t);
+    if (boxed) {
+      const b = t.getBBox(), pad = fs * 0.28;
+      g.insertBefore(el("rect", { x: b.x - pad, y: b.y - pad * 0.6, width: b.width + pad * 2, height: b.height + pad * 1.2, rx: fs * 0.18, class: "lblbox-" + s.type }), t);
+    }
+  }
+}
+
+/* ---------- flat view: one still photo, cropped so every marked shape stays on screen ---------- */
+function viewBoxFor(stop, r) {
+  const aspect = r.w / r.h;
   if (aspect >= W / H * 0.92) return [0, 0, W, H];
   let x0 = W, x1 = 0;
   for (const s of stop.shapes) for (const p of s.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
   for (const s of stop.shapes) if (s.at) { x0 = Math.min(x0, s.at[0] - 150); x1 = Math.max(x1, s.at[0] + 150); }
   x0 = Math.max(0, x0 - 40); x1 = Math.min(W, x1 + 40);
   const need = x1 - x0, vis = H * aspect;
-  if (need <= vis) {
-    const cx = (x0 + x1) / 2;
-    const left = Math.min(W - vis, Math.max(0, cx - vis / 2));
-    return [left, 0, vis, H];
-  }
-  return [x0, 0, need, H]; // shapes are wider than the screen: fit their width, letterbox the height
+  if (need <= vis) { const cx = (x0 + x1) / 2; return [Math.min(W - vis, Math.max(0, cx - vis / 2)), 0, vis, H]; }
+  return [x0, 0, need, H];
 }
-
-function draw() {
-  const stop = STOPS[i];
-  const vb = viewBoxFor(stop);
-  const svg = $("view");
+function drawFlat() {
+  const stop = STOPS[i], r = stageSize();
+  mode = "flat"; cur = null;
+  $("stage").classList.remove("pano", "drag");
+  $("gl").hidden = true; $("card").hidden = true; $("phase").hidden = true; $("recenter").hidden = true;
+  const vb = viewBoxFor(stop, r), svg = $("view");
+  svg.style.display = ""; $("img").style.display = "";
   svg.setAttribute("viewBox", vb.join(" "));
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   $("img").setAttribute("href", stop.img);
-  const g = $("shapes"); g.replaceChildren();
-  const r = $("stage").getBoundingClientRect();
-  const scale = Math.max(vb[2] / r.width, vb[3] / r.height); // image units per CSS pixel
-  const sw = 5 * scale, fs = Math.max(20, Math.min(30, r.width / 22)) * scale;
-  for (const s of stop.shapes) {
-    const pts = s.pts.map(p => p.join(",")).join(" ");
-    if (s.type === "stop") {
-      g.append(el("polyline", { points: pts, class: "shape-stop-under", "stroke-width": sw * 2.6 }));
-      g.append(el("polyline", { points: pts, class: "shape-stop", "stroke-width": sw * 1.5, "stroke-dasharray": `${sw * 3.2} ${sw * 2.6}` }));
-    } else {
-      g.append(el("polygon", { points: pts, class: "shape-" + s.type, "stroke-width": sw }));
-    }
+  const scale = Math.max(vb[2] / r.w, vb[3] / r.h);
+  paint(stop.shapes, p => p, 5 * scale, Math.max(20, Math.min(30, r.w / 22)) * scale);
+  $("turn").hidden = !(r.h > r.w && vb[3] / scale < r.h * 0.62);
+}
+
+/* ---------- text-only stop (open points) ---------- */
+function drawList() {
+  mode = "list"; cur = null;
+  $("stage").classList.remove("pano", "drag");
+  $("gl").hidden = true; $("view").style.display = "none"; $("phase").hidden = true; $("recenter").hidden = true; $("turn").hidden = true;
+  const ul = document.createElement("ul");
+  for (const row of STOPS[i].list) {
+    const li = document.createElement("li"), b = document.createElement("b");
+    b.textContent = row[0]; li.append(b, row[1]); ul.append(li);
   }
-  for (const s of stop.shapes) {
-    if (!s.label || !s.at) continue;
-    const t = el("text", { x: s.at[0], y: s.at[1], "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "lbl lbl-" + s.type, "stroke-width": (s.type === "clean" || s.type === "note") ? fs * 0.22 : 0 });
-    t.textContent = s.label;
-    g.append(t);
-    if (s.type === "stop" || s.type === "out") {
-      const b = t.getBBox(), pad = fs * 0.28;
-      g.insertBefore(el("rect", { x: b.x - pad, y: b.y - pad * 0.6, width: b.width + pad * 2, height: b.height + pad * 1.2, rx: fs * 0.18, class: "lblbox-" + s.type }), t);
-    }
-  }
-  $("turn").hidden = !(r.height > r.width && vb[3] / scale < r.height * 0.62);
+  $("card").replaceChildren(ul); $("card").hidden = false; $("card").scrollTop = 0;
+}
+
+/* ---------- look-around view: the real 360° frame, drawn with WebGL ---------- */
+let GL = null, glFailed = false;
+const tex = {};   // stop index -> { ready, failed, promise, texture }
+function initGL() {
+  if (GL || glFailed) return GL;
+  try {
+    const c = $("gl"), gl = c.getContext("webgl", { antialias: false, alpha: false }) || c.getContext("experimental-webgl");
+    if (!gl) throw 0;
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw 0; return s; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}"));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `precision highp float;
+uniform sampler2D t; uniform vec2 res; uniform float f; uniform vec2 yp;
+void main(){ vec2 p = gl_FragCoord.xy - res*0.5;
+  float cp=cos(yp.y), sp=sin(yp.y), cy=cos(yp.x), sy=sin(yp.x);
+  float ry = p.y*cp + f*sp, rz = -p.y*sp + f*cp, rx = p.x;
+  float wx = rx*cy + rz*sy, wz = -rx*sy + rz*cy;
+  float lon = atan(wx, wz), lat = atan(ry, length(vec2(wx, wz)));
+  gl_FragColor = texture2D(t, vec2(lon/6.28318530718 + 0.5, 0.5 - lat/3.14159265359)); }`));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw 0;
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const a = gl.getAttribLocation(prog, "a"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+    GL = { gl, c, res: gl.getUniformLocation(prog, "res"), f: gl.getUniformLocation(prog, "f"), yp: gl.getUniformLocation(prog, "yp") };
+    c.addEventListener("webglcontextlost", e => { e.preventDefault(); glFailed = true; GL = null; for (const k in tex) tex[k].failed = true; if (mode === "pano") drawFlat(); });
+  } catch (e) { glFailed = true; GL = null; }
+  return GL;
+}
+function loadTex(idx) {
+  if (tex[idx]) return tex[idx];
+  const t = tex[idx] = { ready: false, failed: false };
+  t.promise = new Promise(done => {
+    const g = initGL(); if (!g) { t.failed = true; return done(false); }
+    const im = new Image();
+    im.onerror = () => { t.failed = true; done(false); };
+    im.onload = () => {
+      try {
+        const gl = g.gl, max = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        let src = im;
+        if (im.naturalWidth > max) { const cv = document.createElement("canvas"); cv.width = max; cv.height = max / 2; cv.getContext("2d").drawImage(im, 0, 0, max, max / 2); src = cv; }
+        t.texture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, src);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        if (gl.getError() !== gl.NO_ERROR) throw 0;
+        t.ready = true; done(true);
+      } catch (e) { t.failed = true; done(false); }
+    };
+    im.src = STOPS[idx].pano.eq;
+  });
+  return t;
+}
+function focal(v, r) { return Math.min(r.w / (2 * Math.tan(v.w * RAD / 2)), r.h / (2 * Math.tan(v.h * RAD / 2))); }
+function projector(v, r) {
+  const f = focal(v, r), cy = Math.cos(v.yaw * RAD), sy = Math.sin(v.yaw * RAD), cp = Math.cos(v.pitch * RAD), sp = Math.sin(v.pitch * RAD);
+  return ll => {
+    const lon = ll[0] * RAD, lat = ll[1] * RAD;
+    const wx = Math.cos(lat) * Math.sin(lon), wy = Math.sin(lat), wz = Math.cos(lat) * Math.cos(lon);
+    const rx = wx * cy - wz * sy, rz = wx * sy + wz * cy;
+    const y = wy * cp - rz * sp, z = wy * sp + rz * cp;
+    return z <= 0.05 ? null : [r.w / 2 + f * rx / z, r.h / 2 - f * y / z];
+  };
+}
+function renderPano() {
+  const stop = STOPS[i], t = tex[i], r = stageSize(), g = GL;
+  if (!g || !t || !t.ready) return drawFlat();
+  const dpr = Math.min(2, window.devicePixelRatio || 1), gl = g.gl;
+  const cw = Math.round(r.w * dpr), ch = Math.round(r.h * dpr);
+  if (g.c.width !== cw || g.c.height !== ch) { g.c.width = cw; g.c.height = ch; }
+  gl.viewport(0, 0, cw, ch);
+  gl.bindTexture(gl.TEXTURE_2D, t.texture);
+  gl.uniform2f(g.res, cw, ch); gl.uniform1f(g.f, focal(cur, r) * dpr); gl.uniform2f(g.yp, cur.yaw * RAD, cur.pitch * RAD);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  const svg = $("view");
+  svg.setAttribute("viewBox", `0 0 ${r.w} ${r.h}`); svg.setAttribute("preserveAspectRatio", "none");
+  paint(stop.pano.shapes, projector(cur, r), 5, Math.max(20, Math.min(30, r.w / 22)));
+  const c = stop.pano.close;
+  $("recenter").hidden = !(cur.settled && (Math.abs(cur.yaw - c.yaw) > 1 || Math.abs(cur.pitch - c.pitch) > 1));
+}
+function lerpView(a, b, k) {
+  let dy = b.yaw - a.yaw; dy = ((dy + 540) % 360) - 180;
+  return { yaw: a.yaw + dy * k, pitch: a.pitch + (b.pitch - a.pitch) * k, w: a.w + (b.w - a.w) * k, h: a.h + (b.h - a.h) * k };
+}
+function moveTo(target, ms, my, after) {
+  const m = ++motion, from = { ...cur }, t0 = performance.now();
+  const step = now => {
+    if (m !== motion || my !== token) return;
+    const k = Math.min(1, (now - t0) / ms), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    cur = lerpView(from, target, e); cur.settled = k >= 1 && !!after;
+    renderPano();
+    if (k < 1) requestAnimationFrame(step); else if (after) after();
+  };
+  requestAnimationFrame(step);
+}
+function startPano(my) {
+  const stop = STOPS[i], p = stop.pano;
+  mode = "pano"; cur = { ...p.wide, settled: false };
+  $("stage").classList.add("pano");
+  $("gl").hidden = false; $("card").hidden = true; $("turn").hidden = true;
+  $("view").style.display = ""; $("img").style.display = "none";
+  $("phase").textContent = "Vista geral"; $("phase").hidden = false;
+  renderPano();
+  const settle = () => { if (my !== token) return; cur.settled = true; $("phase").textContent = "Detalhe · arraste para olhar em volta"; renderPano(); };
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const m = motion;
+  setTimeout(() => {
+    if (my !== token || m !== motion) return;           // left the stop, or the person already took over by dragging
+    if (reduce) { cur = { ...p.close }; settle(); } else moveTo(p.close, ZOOM_MS, my, settle);
+  }, WIDE_MS);
+}
+
+/* ---------- navigation ---------- */
+function show() {
+  const my = ++token; motion++; drag = null;
+  const stop = STOPS[i];
   $("room").textContent = stop.room;
+  $("item").textContent = stop.item || "";
   $("do").textContent = stop.do;
   $("limit").textContent = stop.limit || "";
-  $("item").textContent = stop.item || "";
   $("status").hidden = stop.status !== "confirmar";
   $("count").textContent = (i + 1) + " / " + STOPS.length;
   $("prev").disabled = i === 0;
   $("next").disabled = i === STOPS.length - 1;
-  const nx = STOPS[i + 1]; if (nx) { const pre = new Image(); pre.src = nx.img; }
+  const nx = STOPS[i + 1];
+  if (nx && nx.img) { const pre = new Image(); pre.src = nx.img; }
+  if (nx && nx.pano) loadTex(i + 1);
+  if (stop.list) return drawList();
+  if (!stop.pano) return drawFlat();
+  const t = loadTex(i);
+  if (t.ready) return startPano(my);
+  if (t.failed) return drawFlat();
+  // The 360° frame is still decoding: keep the stage dark for a moment, then use whichever is available.
+  $("gl").hidden = true; $("card").hidden = true; $("view").style.display = "none"; $("phase").hidden = true; $("recenter").hidden = true; $("turn").hidden = true;
+  let decided = false;
+  t.promise.then(ok => { if (decided || my !== token) return; decided = true; ok ? startPano(my) : drawFlat(); });
+  setTimeout(() => { if (decided || my !== token) return; decided = true; drawFlat(); }, 2500);
 }
-
-function go(d) { const n = Math.min(STOPS.length - 1, Math.max(0, i + d)); if (n !== i) { i = n; draw(); } }
+function go(d) { const n = Math.min(STOPS.length - 1, Math.max(0, i + d)); if (n !== i) { i = n; show(); } }
 $("prev").addEventListener("click", () => go(-1));
 $("next").addEventListener("click", () => go(1));
 addEventListener("keydown", e => {
   if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(1); }
   else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(-1); }
 });
-addEventListener("resize", draw);
-draw();
+addEventListener("resize", () => { if (mode === "pano") renderPano(); else if (mode === "flat") drawFlat(); });
+
+/* ---------- drag to look around (only on look-around stops; limited so the target stays in view) ---------- */
+const stage = $("stage");
+stage.addEventListener("pointerdown", e => {
+  if (mode !== "pano" || e.target.closest("button")) return;
+  motion++;                                            // stop any running camera movement
+  const c = STOPS[i].pano.close;
+  cur = { yaw: cur.yaw, pitch: cur.pitch, w: c.w, h: c.h, settled: true };
+  $("phase").textContent = "Detalhe · arraste para olhar em volta";
+  drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  stage.classList.add("drag");
+  try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+  renderPano();
+});
+stage.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId !== drag.id || mode !== "pano") return;
+  const c = STOPS[i].pano.close, f = focal(cur, stageSize());
+  let dyaw = ((cur.yaw - (e.clientX - drag.x) / f / RAD - c.yaw + 540) % 360) - 180;
+  const next = { ...cur, yaw: c.yaw + Math.max(-PAN_YAW, Math.min(PAN_YAW, dyaw)),
+    pitch: Math.max(c.pitch - PAN_PITCH, Math.min(c.pitch + PAN_PITCH, cur.pitch + (e.clientY - drag.y) / f / RAD)) };
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (!targetVisible(next)) return;                    // never let the marked target leave the screen
+  cur = next;
+  renderPano();
+});
+function targetVisible(v) {
+  const r = stageSize(), pr = projector(v, r); let sx = 0, sy = 0, n = 0;
+  for (const s of STOPS[i].pano.shapes) for (const q of s.pts) { const a = pr(q); if (!a) return false; sx += a[0]; sy += a[1]; n++; }
+  const x = sx / n, y = sy / n;
+  return x > r.w * 0.12 && x < r.w * 0.88 && y > r.h * 0.12 && y < r.h * 0.88;
+}
+const endDrag = e => { if (drag && e.pointerId === drag.id) { drag = null; stage.classList.remove("drag"); } };
+stage.addEventListener("pointerup", endDrag); stage.addEventListener("pointercancel", endDrag);
+$("recenter").addEventListener("click", () => { if (mode === "pano") moveTo(STOPS[i].pano.close, 450, token, () => { cur.settled = true; renderPano(); }); });
+
+window.__guide = { targetVisible, get state() { return { i, mode, cur: cur && { ...cur }, glFailed, token }; }, projector, stageSize };
+show();
 </script>
