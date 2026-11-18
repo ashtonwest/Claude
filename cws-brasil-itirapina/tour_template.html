@@ -121,6 +121,22 @@ function loadClip(id) {
     }
   })();
 }
+/* sharp still of each stop (full-resolution source frame); the walk between stops uses the video */
+const stills = {}; let texKey = "";
+function loadStill(i) {
+  const n = T.nodes[i]; if (!n || stills[i]) return; const st = stills[i] = { img: null }, id = "s_" + n.id;
+  (async () => {
+    let url;
+    try { const r = await fetch("media/" + id + ".jpg"); if (!r.ok) throw 0; const b = await r.blob(); if (b.size < 1000) throw 0; url = URL.createObjectURL(b); }
+    catch (e) {
+      await new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "media/" + id + ".js"; sc.onload = ok; sc.onerror = () => bad(new Error("still")); document.head.append(sc); });
+      const b64 = (window.__MEDIA || {})[id]; if (!b64) throw new Error("still");
+      const bin = atob(b64), u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+      window.__MEDIA[id] = null; url = URL.createObjectURL(new Blob([u], { type: "image/jpeg" }));
+    }
+    const im = new Image(); im.onload = () => { if (!GL || im.naturalWidth <= GL.gl.getParameter(GL.gl.MAX_TEXTURE_SIZE)) st.img = im; }; im.src = url;
+  })().catch(() => {});
+}
 function seekTo(t) { return new Promise(ok => { if (Math.abs(vid.currentTime - t) < 0.001 && vid.readyState >= 2) return ok(); const f = () => { vid.removeEventListener("seeked", f); ok(); }; vid.addEventListener("seeked", f); vid.currentTime = t; }); }
 async function openAt(id, t, my) {
   if (clipId !== id) {
@@ -156,7 +172,9 @@ void main(){ vec2 p = gl_FragCoord.xy - res*0.5;
   float ry = p.y*cp + f*sp, rz = -p.y*sp + f*cp, rx = p.x;
   float wx = rx*cy + rz*sy, wz = -rx*sy + rz*cy;
   float lon = atan(wx, wz), lat = atan(ry, length(vec2(wx, wz)));
-  gl_FragColor = texture2D(t, vec2(lon/6.28318530718 + 0.5, 0.5 - lat/3.14159265359)); }`));
+  vec4 c = texture2D(t, vec2(lon/6.28318530718 + 0.5, 0.5 - lat/3.14159265359));
+  float cap = 1.0 - smoothstep(-0.80, -0.68, lat);   // soft cover under the camera, where the person carrying it stands
+  gl_FragColor = mix(c, vec4(0.055, 0.078, 0.094, 1.0), cap * 0.96); }`));
     gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw 0; gl.useProgram(p);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const a = gl.getAttribLocation(p, "a"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
@@ -207,7 +225,11 @@ function frame() {
   if (follow > 0.002) { room = wrap(view.lon - rotAt(t)); view.pitch += (-6 - view.pitch) * 0.03 * follow; }
   const dpr = Math.min(2, window.devicePixelRatio || 1), cw = Math.round(r.w * dpr), ch = Math.round(r.h * dpr);
   if (GL.c.width !== cw || GL.c.height !== ch) { GL.c.width = cw; GL.c.height = ch; }
-  if ((playing || needTex || t !== lastT) && vid.readyState >= 2) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, vid); needTex = false; lastT = t; } catch (e) { GL = null; return fail(); } }
+  const sharp = !leg && stills[ni] && stills[ni].img && T.nodes[ni].clip === clipId && Math.abs(t - T.nodes[ni].t) < 0.06 ? stills[ni].img : null;
+  try {
+    if (sharp) { if (texKey !== "s" + ni) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, sharp); texKey = "s" + ni; } }
+    else if ((playing || needTex || t !== lastT || texKey !== "v") && vid.readyState >= 2) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, vid); needTex = false; lastT = t; texKey = "v"; }
+  } catch (e) { GL = null; return fail(); }
   gl.viewport(0, 0, cw, ch); gl.uniform2f(GL.res, cw, ch); gl.uniform1f(GL.f, focal(r) * dpr); gl.uniform2f(GL.yp, view.lon * RAD, view.pitch * RAD);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   overlay(r, t);
@@ -283,6 +305,7 @@ async function showNode(i, keepView) {
   if (!keepView) { const a = framing(n); view.lon = a ? a[0] : refAt(n.t); view.pitch = a ? a[1] : -6; }
   room = wrap(view.lon - rotAt(n.t));
   ui(); const nx = T.nodes[i + 1]; if (nx) loadClip(nx.clip).catch(() => {});
+  loadStill(i); loadStill(i + 1);
 }
 function arrive() { vid.pause(); vid.playbackRate = 1; ni = leg.to; leg = null; followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); needTex = true; if (!touched) aim = framing(T.nodes[ni]); ui(); }
 function go() {
@@ -371,7 +394,7 @@ function lists() {
 function toggle(id) { const p = $(id), open = p.hidden; closeAll(); $("routeBtn").textContent = open && id === "routeList" ? "✕ Fechar" : "Roteiro"; $("scopeBtn").textContent = open && id === "scopeList" ? "✕ Fechar" : "Escopo"; if (open) { if (leg && !vid.paused) vid.pause(); p.hidden = false; p.scrollTop = 0; p.querySelectorAll("li.cur").forEach(x => x.classList.remove("cur")); const c = p.querySelector(`[data-node="${ni}"]`); if (c) c.parentNode.classList.add("cur"); } }
 $("routeBtn").addEventListener("click", () => toggle("routeList")); $("scopeBtn").addEventListener("click", () => toggle("scopeList"));
 
-window.__tour = { get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, sel, cue: $("cue").hidden ? "" : $("cue").textContent, touched, drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), arrow: drawn.arrow || null, gl: !!GL }; }, T };
+window.__tour = { get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, sel, tex: texKey, cue: $("cue").hidden ? "" : $("cue").textContent, touched, drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), arrow: drawn.arrow || null, gl: !!GL }; }, T };
 initGL(); lists(); ui();
 if (!GL) fail(); else { requestAnimationFrame(frame); showNode(0); }
 </script>

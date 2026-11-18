@@ -47,6 +47,13 @@ for cid in clips:
     b = (S / "tour/media" / f"{cid}.mp4").read_bytes(); total += len(b)
     (out / "media" / f"{cid}.mp4").write_bytes(b)
     (off / "media" / f"{cid}.js").write_text('(window.__MEDIA=window.__MEDIA||{})["%s"]="%s";' % (cid, base64.b64encode(b).decode()))
+import subprocess
+for n in cfg["nodes"]:   # one full-resolution still per stop, taken from the working copy at the stop's source time
+    c = cfg["clips"][n["clip"]]; jpg = out / "media" / f"s_{n['id']}.jpg"
+    if not jpg.exists():
+        video = next((S / "src" / c["video"]).glob("*.mp4"))
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(n["src"]), "-i", str(video), "-frames:v", "1", "-q:v", "4", str(jpg)], check=True)
+    (off / "media" / f"s_{n['id']}.js").write_text('(window.__MEDIA=window.__MEDIA||{})["s_%s"]="%s";' % (n["id"], base64.b64encode(jpg.read_bytes()).decode()))
 v5 = here / "Itirapina-roteiro-offline.html"
 if v5.exists(): shutil.copy(v5, off / "guia-v5.html"); shutil.copy(v5, out / "guia-v5.html")
 print(len(nodes), "stops,", len(clips), "clips,", round(total / 1e6, 1), "MB video,", sum(len(v) for v in tracks.values()), "outline tracks")
