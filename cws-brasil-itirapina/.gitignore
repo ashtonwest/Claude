@@ -1,0 +1,5 @@
+# Client site imagery and site-walk quotes stay out of this public repo
+views/
+index.html
+stops.json
+RECORD.md

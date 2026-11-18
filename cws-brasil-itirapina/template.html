@@ -1,0 +1,190 @@
+<title>Itirapina: Roteiro de Limpeza</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one real view fills the screen; a caption band and two large controls sit under it (beside it on a phone held sideways). */
+:root {
+  color-scheme: dark;
+  --bg: #0e1418;          /* blue-black, keeps the photo dominant */
+  --panel: #16212a;
+  --line: #2b3b47;
+  --fg: #f3f6f8;
+  --muted: #a9b8c3;
+  --clean: #19e0c3;       /* surface to clean */
+  --stop: #ff5a3c;        /* where cleaning stops / not included */
+  --warn: #ffc53d;        /* scope not yet confirmed */
+  --btn: #f3f6f8;
+  --btn-fg: #0e1418;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font);
+  display: flex; flex-direction: column; overflow: hidden;
+  -webkit-user-select: none; user-select: none;
+}
+#stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#room {
+  position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); top: 12px;
+  background: rgba(14,20,24,.82); color: var(--fg);
+  font-weight: 800; font-size: clamp(18px, 3.2vmin, 30px); letter-spacing: .01em;
+  padding: .35em .7em; border-radius: 6px; border-left: 6px solid var(--clean);
+  max-width: calc(100% - 24px);
+}
+#turn {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); white-space: nowrap;
+  background: rgba(14,20,24,.82); color: var(--fg); font-size: 15px; font-weight: 650; padding: .35em .8em; border-radius: 999px;
+}
+#panel {
+  flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#do { font-size: clamp(20px, 4.2vmin, 40px); font-weight: 750; line-height: 1.2; margin: 0; text-wrap: balance; }
+#limit { font-size: clamp(17px, 3.4vmin, 32px); font-weight: 650; line-height: 1.25; margin: 0; color: var(--stop); }
+#limit:empty { display: none; }
+#status {
+  align-self: flex-start; font-size: clamp(13px, 1.9vmin, 17px); font-weight: 750; letter-spacing: .06em; text-transform: uppercase;
+  color: #1a1400; background: var(--warn); padding: .2em .55em; border-radius: 4px;
+}
+#nav { display: flex; gap: 12px; align-items: stretch; }
+#nav button {
+  flex: 1 1 0; min-height: 64px; border: 0; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: clamp(20px, 3.2vmin, 30px); font-weight: 800;
+  background: var(--btn); color: var(--btn-fg);
+}
+#nav button#prev { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 2px var(--muted); }
+#nav button:disabled { opacity: .3; cursor: default; }
+#nav button:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
+#count { flex: 0 0 auto; align-self: center; min-width: 3.6em; text-align: center; color: var(--muted); font-size: clamp(15px, 2.2vmin, 20px); font-weight: 650; font-variant-numeric: tabular-nums; }
+@media (orientation: landscape) and (max-height: 560px) {
+  body { flex-direction: row; }
+  #panel { width: 36%; max-width: 380px; border-top: 0; border-left: 1px solid var(--line); justify-content: space-between; padding-left: 14px; }
+  #nav { flex-wrap: wrap; }
+  #nav button { min-height: 56px; flex-basis: 100%; order: 2; }
+  #nav button#next { order: 1; }
+  #count { order: 3; flex-basis: 100%; }
+}
+.shape-clean { fill: var(--clean); fill-opacity: .30; stroke: var(--clean); stroke-linejoin: round; }
+.shape-out { fill: url(#hatch); stroke: var(--stop); stroke-linejoin: round; }
+.shape-note { fill: none; stroke: var(--warn); stroke-linejoin: round; }
+.shape-stop { fill: none; stroke: var(--stop); stroke-linecap: round; }
+.shape-stop-under { fill: none; stroke: #000; stroke-opacity: .55; stroke-linecap: round; }
+.lbl { font-family: var(--font); font-weight: 800; paint-order: stroke; stroke: #000; stroke-opacity: .8; stroke-linejoin: round; }
+.lbl-clean { fill: var(--clean); }
+.lbl-stop, .lbl-out { fill: #fff; }
+.lbl-note { fill: var(--warn); }
+.lblbox-stop, .lblbox-out { fill: var(--stop); }
+</style>
+
+<div id="stage">
+  <svg id="view" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="do">
+    <defs>
+      <pattern id="hatch" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="22" height="22" fill="#ff5a3c" fill-opacity=".16"></rect>
+        <rect width="7" height="22" fill="#ff5a3c" fill-opacity=".62"></rect>
+      </pattern>
+    </defs>
+    <image id="img" x="0" y="0" width="1600" height="900" preserveAspectRatio="none"></image>
+    <g id="shapes"></g>
+  </svg>
+  <div id="room"></div>
+  <div id="turn" hidden>↻ Vire o celular de lado para ver maior</div>
+</div>
+<div id="panel">
+  <div id="text">
+    <span id="status" hidden>Escopo a confirmar</span>
+    <p id="do"></p>
+    <p id="limit"></p>
+  </div>
+  <div id="nav">
+    <button id="prev" type="button">← Anterior</button>
+    <span id="count"></span>
+    <button id="next" type="button">Próximo →</button>
+  </div>
+</div>
+
+<script>
+const STOPS = /*__STOPS__*/[];
+const W = 1600, H = 900, NS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+let i = 0;
+
+function el(name, attrs) {
+  const n = document.createElementNS(NS, name);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+
+// Choose the visible part of the photo: the whole view when it fits, otherwise a crop that keeps every marked shape on screen.
+function viewBoxFor(stop) {
+  const r = $("stage").getBoundingClientRect();
+  const aspect = r.width / Math.max(1, r.height);
+  if (aspect >= W / H * 0.92) return [0, 0, W, H];
+  let x0 = W, x1 = 0;
+  for (const s of stop.shapes) for (const p of s.pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }
+  for (const s of stop.shapes) if (s.at) { x0 = Math.min(x0, s.at[0] - 150); x1 = Math.max(x1, s.at[0] + 150); }
+  x0 = Math.max(0, x0 - 40); x1 = Math.min(W, x1 + 40);
+  const need = x1 - x0, vis = H * aspect;
+  if (need <= vis) {
+    const cx = (x0 + x1) / 2;
+    const left = Math.min(W - vis, Math.max(0, cx - vis / 2));
+    return [left, 0, vis, H];
+  }
+  return [x0, 0, need, H]; // shapes are wider than the screen: fit their width, letterbox the height
+}
+
+function draw() {
+  const stop = STOPS[i];
+  const vb = viewBoxFor(stop);
+  const svg = $("view");
+  svg.setAttribute("viewBox", vb.join(" "));
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  $("img").setAttribute("href", stop.img);
+  const g = $("shapes"); g.replaceChildren();
+  const r = $("stage").getBoundingClientRect();
+  const scale = Math.max(vb[2] / r.width, vb[3] / r.height); // image units per CSS pixel
+  const sw = 5 * scale, fs = Math.max(20, Math.min(30, r.width / 22)) * scale;
+  for (const s of stop.shapes) {
+    const pts = s.pts.map(p => p.join(",")).join(" ");
+    if (s.type === "stop") {
+      g.append(el("polyline", { points: pts, class: "shape-stop-under", "stroke-width": sw * 2.6 }));
+      g.append(el("polyline", { points: pts, class: "shape-stop", "stroke-width": sw * 1.5, "stroke-dasharray": `${sw * 3.2} ${sw * 2.6}` }));
+    } else {
+      g.append(el("polygon", { points: pts, class: "shape-" + s.type, "stroke-width": sw }));
+    }
+  }
+  for (const s of stop.shapes) {
+    if (!s.label || !s.at) continue;
+    const t = el("text", { x: s.at[0], y: s.at[1], "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "lbl lbl-" + s.type, "stroke-width": (s.type === "clean" || s.type === "note") ? fs * 0.22 : 0 });
+    t.textContent = s.label;
+    g.append(t);
+    if (s.type === "stop" || s.type === "out") {
+      const b = t.getBBox(), pad = fs * 0.28;
+      g.insertBefore(el("rect", { x: b.x - pad, y: b.y - pad * 0.6, width: b.width + pad * 2, height: b.height + pad * 1.2, rx: fs * 0.18, class: "lblbox-" + s.type }), t);
+    }
+  }
+  $("turn").hidden = !(r.height > r.width && vb[3] / scale < r.height * 0.62);
+  $("room").textContent = stop.room;
+  $("do").textContent = stop.do;
+  $("limit").textContent = stop.limit || "";
+  $("status").hidden = stop.status !== "confirmar";
+  $("count").textContent = (i + 1) + " / " + STOPS.length;
+  $("prev").disabled = i === 0;
+  $("next").disabled = i === STOPS.length - 1;
+  const nx = STOPS[i + 1]; if (nx) { const pre = new Image(); pre.src = nx.img; }
+}
+
+function go(d) { const n = Math.min(STOPS.length - 1, Math.max(0, i + d)); if (n !== i) { i = n; draw(); } }
+$("prev").addEventListener("click", () => go(-1));
+$("next").addEventListener("click", () => go(1));
+addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(1); }
+  else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(-1); }
+});
+addEventListener("resize", draw);
+draw();
+</script>
