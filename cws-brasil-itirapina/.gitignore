@@ -5,3 +5,8 @@ stops.json
 RECORD.md
 Itirapina-roteiro-offline.html
 __pycache__/
+tour.json
+tour/
+Itirapina-tour-offline*
+RECORD-v6.md
+*.zip

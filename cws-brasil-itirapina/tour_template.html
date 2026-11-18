@@ -1,0 +1,343 @@
+<title>Itirapina: Roteiro de Limpeza</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the building fills the screen; one bar of controls sits under it (beside it on a phone held sideways). */
+:root {
+  color-scheme: dark;
+  --bg: #0e1418; --panel: #16212a; --line: #2b3b47; --fg: #f3f6f8; --muted: #a9b8c3;
+  --clean: #19e0c3; --stop: #ff5a3c; --warn: #ffc53d; --btn: #f3f6f8; --btn-fg: #0e1418;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); display: flex; flex-direction: column; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-text-size-adjust: 100%; }
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
+#stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; touch-action: none; cursor: grab; }
+#stage.drag { cursor: grabbing; }
+#gl, #ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#vid { position: absolute; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
+.chip { position: absolute; background: rgba(14,20,24,.84); color: var(--fg); border-radius: 6px; font-weight: 700; font-size: clamp(14px, 2.2vmin, 18px); padding: .4em .75em; border: 0; }
+#where { left: max(12px, env(safe-area-inset-left, 0px)); top: 12px; font-weight: 800; font-size: clamp(17px, 3vmin, 28px); border-left: 6px solid var(--clean); max-width: calc(100% - 215px); line-height: 1.15; }
+@media (max-width: 520px) { #where { font-size: 15px; } #menu button { padding-inline: .55em; } }
+#where small { display: block; font-size: .62em; font-weight: 650; color: var(--muted); letter-spacing: .02em; }
+#menu, #where { z-index: 3; }
+#menu { right: max(12px, env(safe-area-inset-right, 0px)); top: 12px; display: flex; gap: 8px; background: none; padding: 0; }
+#menu button { position: static; min-height: 48px; min-width: 48px; border: 2px solid var(--muted); }
+#src { right: max(12px, env(safe-area-inset-right, 0px)); bottom: 10px; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; pointer-events: none; }
+#msg { left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; max-width: min(86%, 30em); font-size: clamp(16px, 2.6vmin, 22px); line-height: 1.3; padding: .8em 1em; }
+#msg a { color: var(--clean); }
+#jump { position: absolute; inset: 0; background: rgba(8,12,15,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
+#jump b { font-size: clamp(22px, 4.4vmin, 40px); }
+#jump span { font-size: clamp(16px, 2.8vmin, 24px); color: var(--warn); max-width: 26em; line-height: 1.3; }
+#sheet { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(22,33,42,.96); border-top: 4px solid var(--clean); padding: 12px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); display: flex; gap: 12px; align-items: flex-start; }
+#sheet.out { border-top-color: var(--stop); } #sheet.note { border-top-color: var(--warn); }
+#sheet div { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+#sItem { font-size: clamp(13px, 2.2vmin, 18px); font-weight: 700; color: var(--muted); }
+#sDo { font-size: clamp(19px, 3.6vmin, 34px); font-weight: 750; line-height: 1.2; }
+#sLimit { font-size: clamp(16px, 2.9vmin, 26px); font-weight: 650; line-height: 1.25; color: var(--stop); }
+#sClose { flex: 0 0 auto; min-width: 48px; min-height: 48px; border: 2px solid var(--muted); border-radius: 8px; background: none; font-size: 22px; font-weight: 700; }
+.list { position: absolute; inset: 0; overflow: auto; background: var(--bg); padding: 70px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+.list h2 { margin: 0 0 10px; font-size: clamp(20px, 3.6vmin, 30px); }
+.list ol, .list ul { list-style: none; margin: 0 auto; padding: 0; max-width: 62em; display: flex; flex-direction: column; gap: 8px; }
+.list li { display: flex; }
+.list li > button, .list li > div, .list li > a { flex: 1 1 auto; text-align: left; background: var(--panel); border: 0; border-left: 6px solid var(--clean); border-radius: 6px; padding: .65em .8em; font-size: clamp(16px, 2.7vmin, 22px); line-height: 1.3; min-height: 48px; color: var(--fg); text-decoration: none; display: block; }
+.list li.gap > div { border-left-color: var(--warn); color: var(--warn); font-size: clamp(14px, 2.2vmin, 18px); background: none; padding-block: .1em; min-height: 0; }
+.list li.pend > button, .list li.pend > div { border-left-color: var(--warn); }
+.list li.cur > button { box-shadow: inset 0 0 0 2px var(--clean); }
+.list small { display: block; color: var(--muted); font-size: .8em; font-weight: 600; }
+#bar { flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: stretch; padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+#bar button { min-height: 64px; border: 0; border-radius: 10px; font-size: clamp(20px, 3.2vmin, 30px); font-weight: 800; }
+#back { flex: 0 0 34%; background: transparent; box-shadow: inset 0 0 0 2px var(--muted); }
+#go { flex: 1 1 auto; background: var(--btn); color: var(--btn-fg); }
+#bar button:disabled { opacity: .3; cursor: default; }
+@media (orientation: landscape) and (max-height: 560px) {
+  body { flex-direction: row; }
+  #bar { flex-direction: column-reverse; justify-content: flex-start; width: 200px; border-top: 0; border-left: 1px solid var(--line); padding-left: 12px; }
+  #bar button { min-height: 56px; flex: 0 0 auto; font-size: 20px; } #back { flex-basis: auto; }
+}
+.t-clean { fill: var(--clean); fill-opacity: .26; stroke: var(--clean); }
+.t-out { fill: var(--stop); fill-opacity: .22; stroke: var(--stop); stroke-dasharray: 9 7; }
+.t-note { fill: var(--warn); fill-opacity: .12; stroke: var(--warn); }
+.t-sel { fill-opacity: .46; stroke-width: 6; }
+.tl { font-family: var(--font); font-weight: 800; paint-order: stroke; stroke: #000; stroke-opacity: .8; stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.tl-clean { fill: var(--clean); } .tl-out { fill: #ffb4a4; } .tl-note { fill: var(--warn); }
+#arrow circle { fill: rgba(243,246,248,.92); stroke: var(--bg); stroke-width: 3; }
+#arrow path { fill: none; stroke: var(--bg); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+#arrow text { font-family: var(--font); font-weight: 800; fill: var(--fg); paint-order: stroke; stroke: #000; stroke-opacity: .8; stroke-width: 4px; }
+</style>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <video id="vid" muted playsinline webkit-playsinline preload="auto"></video>
+  <svg id="ov" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista do prédio com as áreas de limpeza marcadas"></svg>
+  <div id="where" class="chip"></div>
+  <div id="menu" class="chip"><button id="routeBtn" class="chip" type="button">Roteiro</button><button id="scopeBtn" class="chip" type="button">Escopo</button></div>
+  <div id="src" class="chip"></div>
+  <div id="sheet" hidden><div><span id="sItem"></span><span id="sDo"></span><span id="sLimit"></span></div><button id="sClose" type="button" aria-label="Fechar">✕</button></div>
+  <div id="jump" hidden><b id="jumpTo"></b><span id="jumpNote"></span></div>
+  <div id="routeList" class="list" hidden></div>
+  <div id="scopeList" class="list" hidden></div>
+  <div id="msg" class="chip" hidden></div>
+</div>
+<div id="bar">
+  <button id="back" type="button">← Voltar</button>
+  <button id="go" type="button">▶ Percorrer</button>
+</div>
+
+<script>
+const T = /*__TOUR__*/{};
+const NS = "http://www.w3.org/2000/svg", RAD = Math.PI / 180, FPS = 10;
+const $ = id => document.getElementById(id);
+const vid = $("vid"), stage = $("stage");
+const wrap = a => ((a + 540) % 360) - 180;
+const lerpA = (a, b, k) => a + wrap(b - a) * k;
+
+/* ---------- state ---------- */
+let ni = 0;                 // node we are at, or the node the current leg started from
+let leg = null;             // { to: node index, end: clip seconds } while travelling (playing or paused mid-leg)
+let clipId = null, ready = false, gen = 0;
+let view = { lon: 0, pitch: -6 };
+let room = 0;               // look direction fixed in the room: camera longitude = room + rot(t)
+let follow = 0;             // 1 = look along the route direction, 0 = hold the direction the person chose; eases between them
+let followGoal = 0;
+let sel = null, drawn = [], needTex = false, lastT = -1, jumpTimer = 0;
+
+/* ---------- media: each clip arrives as a Blob, so the frames can be drawn in 3D even from a local file ---------- */
+const blobs = {};
+function loadClip(id) {
+  if (blobs[id]) return blobs[id];
+  return blobs[id] = (async () => {
+    try { const r = await fetch("media/" + id + ".mp4"); if (!r.ok) throw 0; const b = await r.blob(); if (b.size < 1000) throw 0; return URL.createObjectURL(b); }
+    catch (e) {
+      await new Promise((ok, bad) => { const s = document.createElement("script"); s.src = "media/" + id + ".js"; s.onload = ok; s.onerror = () => bad(new Error("media")); document.head.append(s); });
+      const b64 = (window.__MEDIA || {})[id]; if (!b64) throw new Error("media");
+      const bin = atob(b64), u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+      window.__MEDIA[id] = null; return URL.createObjectURL(new Blob([u], { type: "video/mp4" }));
+    }
+  })();
+}
+function seekTo(t) { return new Promise(ok => { if (Math.abs(vid.currentTime - t) < 0.001 && vid.readyState >= 2) return ok(); const f = () => { vid.removeEventListener("seeked", f); ok(); }; vid.addEventListener("seeked", f); vid.currentTime = t; }); }
+async function openAt(id, t, my) {
+  if (clipId !== id) {
+    ready = false; say("Carregando o trecho…");
+    const url = await loadClip(id); if (my !== gen) return false;
+    await new Promise((ok, bad) => { const a = () => { vid.removeEventListener("loadeddata", a); vid.removeEventListener("error", b); ok(); }, b = () => { vid.removeEventListener("loadeddata", a); vid.removeEventListener("error", b); bad(new Error("video")); }; vid.addEventListener("loadeddata", a); vid.addEventListener("error", b); vid.src = url; vid.load(); });
+    if (my !== gen) return false; clipId = id;
+  }
+  await seekTo(t); if (my !== gen) return false;
+  ready = true; needTex = true; say(""); return true;
+}
+function say(text, html) { const m = $("msg"); m.hidden = !text; if (html) m.innerHTML = text; else m.textContent = text; }
+function fail() { ready = false; say('Não foi possível abrir as imagens deste trecho. Use o <a href="guia-v5.html" target="_blank" rel="noopener">guia por fotos</a>.', true); }
+
+/* ---------- clip data ---------- */
+function sample(arr, t, ang) { const x = Math.max(0, Math.min(arr.length - 1, t * FPS)), i = Math.floor(x), j = Math.min(arr.length - 1, i + 1), k = x - i; return ang ? lerpA(arr[i], arr[j], k) : arr[i] + (arr[j] - arr[i]) * k; }
+const clip = () => T.clips[clipId];
+const refAt = t => sample(clip().ref, t, true), rotAt = t => sample(clip().rot, t, false);
+const fmt = s => { const m = Math.floor(s / 60), r = s - m * 60; return String(m).padStart(2, "0") + ":" + r.toFixed(1).padStart(4, "0"); };
+
+/* ---------- 3D drawing ---------- */
+let GL = null;
+function initGL() {
+  try {
+    const c = $("gl"), gl = c.getContext("webgl", { antialias: false, alpha: false }) || c.getContext("experimental-webgl"); if (!gl) throw 0;
+    const sh = (ty, s) => { const o = gl.createShader(ty); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw 0; return o; };
+    const p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}"));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, `precision highp float;
+uniform sampler2D t; uniform vec2 res; uniform float f; uniform vec2 yp;
+void main(){ vec2 p = gl_FragCoord.xy - res*0.5;
+  float cp=cos(yp.y), sp=sin(yp.y), cy=cos(yp.x), sy=sin(yp.x);
+  float ry = p.y*cp + f*sp, rz = -p.y*sp + f*cp, rx = p.x;
+  float wx = rx*cy + rz*sy, wz = -rx*sy + rz*cy;
+  float lon = atan(wx, wz), lat = atan(ry, length(vec2(wx, wz)));
+  gl_FragColor = texture2D(t, vec2(lon/6.28318530718 + 0.5, 0.5 - lat/3.14159265359)); }`));
+    gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw 0; gl.useProgram(p);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const a = gl.getAttribLocation(p, "a"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+    const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0]));
+    GL = { gl, c, res: gl.getUniformLocation(p, "res"), f: gl.getUniformLocation(p, "f"), yp: gl.getUniformLocation(p, "yp") };
+  } catch (e) { GL = null; }
+}
+function size() { const r = stage.getBoundingClientRect(); return { w: Math.max(1, r.width), h: Math.max(1, r.height) }; }
+function focal(r) { return Math.sqrt(r.w * r.h) / (2 * Math.tan(40 * RAD)); }
+function projector(r) {
+  const f = focal(r), cy = Math.cos(view.lon * RAD), sy = Math.sin(view.lon * RAD), cp = Math.cos(view.pitch * RAD), sp = Math.sin(view.pitch * RAD);
+  return (lon, lat) => {
+    const a = lon * RAD, b = lat * RAD, wx = Math.cos(b) * Math.sin(a), wy = Math.sin(b), wz = Math.cos(b) * Math.cos(a);
+    const rx = wx * cy - wz * sy, rz = wx * sy + wz * cy, y = wy * cp - rz * sp, z = wy * sp + rz * cp;
+    return z <= 0.08 ? null : [r.w / 2 + f * rx / z, r.h / 2 - f * y / z];
+  };
+}
+function el(n, at) { const e = document.createElementNS(NS, n); for (const k in at) e.setAttribute(k, at[k]); return e; }
+
+/* outlines mapped for the exact frame on screen; nothing is drawn where no verified outline exists for that moment */
+function outlinesAt(t) {
+  const tr = T.tracks[clipId] || {}, i = Math.round(t * FPS), out = [];
+  for (const id in tr) { const p = tr[id][i]; if (p) out.push({ id, p }); }
+  return out;
+}
+function frame() {
+  requestAnimationFrame(frame);
+  if (!GL || !ready || !clipId) return;
+  const r = size(), gl = GL.gl, t = vid.currentTime, playing = !vid.paused;
+  if (leg && playing) {                                   // natural stop at the arrival point
+    const left = leg.end - t;
+    vid.playbackRate = left < 0.8 ? 0.55 : 1;
+    if (left <= 0.02) arrive();
+  }
+  follow += (followGoal - follow) * (followGoal > follow ? 0.035 : 1);
+  const held = room + rotAt(t);
+  view.lon = wrap(follow > 0.002 ? lerpA(held, refAt(t), follow) : held);
+  if (follow > 0.002) { room = wrap(view.lon - rotAt(t)); view.pitch += (-6 - view.pitch) * 0.03 * follow; }
+  const dpr = Math.min(2, window.devicePixelRatio || 1), cw = Math.round(r.w * dpr), ch = Math.round(r.h * dpr);
+  if (GL.c.width !== cw || GL.c.height !== ch) { GL.c.width = cw; GL.c.height = ch; }
+  if ((playing || needTex || t !== lastT) && vid.readyState >= 2) { try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, vid); needTex = false; lastT = t; } catch (e) { GL = null; return fail(); } }
+  gl.viewport(0, 0, cw, ch); gl.uniform2f(GL.res, cw, ch); gl.uniform1f(GL.f, focal(r) * dpr); gl.uniform2f(GL.yp, view.lon * RAD, view.pitch * RAD);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  overlay(r, t);
+  $("src").textContent = "Vídeo " + clip().video.slice(1) + " · " + fmt(clip().t0 + t);
+}
+function overlay(r, t) {
+  const sv = $("ov"), pr = projector(r); sv.setAttribute("viewBox", `0 0 ${r.w} ${r.h}`); sv.replaceChildren(); drawn = [];
+  const fs = Math.max(13, Math.min(19, r.w / 46));
+  for (const o of outlinesAt(t)) {
+    const tg = T.targets[o.id.split("@")[0]], pts = [];
+    for (let k = 0; k < o.p.length; k += 2) { const q = pr(o.p[k], o.p[k + 1]); if (!q) { pts.length = 0; break; } pts.push(q); }
+    if (pts.length < 3) continue;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, area = 0;
+    pts.forEach((q, k) => { const n = pts[(k + 1) % pts.length]; area += q[0] * n[1] - n[0] * q[1]; x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); });
+    if (x1 < 0 || x0 > r.w || y1 < 0 || y0 > r.h) continue;
+    drawn.push({ id: o.id, key: o.id.split("@")[0], pts, area: Math.abs(area) / 2, c: [(x0 + x1) / 2, (y0 + y1) / 2] });
+  }
+  drawn.sort((a, b) => b.area - a.area);                  // small outlines end up on top of large ones
+  for (const d of drawn) {
+    const tg = T.targets[d.key];
+    sv.append(el("polygon", { points: d.pts.map(q => q[0].toFixed(1) + "," + q[1].toFixed(1)).join(" "), class: "t-" + tg.kind + (sel === d.key ? " t-sel" : ""), "stroke-width": 4, "stroke-linejoin": "round" }));
+  }
+  for (const d of drawn) {
+    const tg = T.targets[d.key], tx = el("text", { x: Math.max(40, Math.min(r.w - 40, d.c[0])), y: Math.max(16, Math.min(r.h - 12, d.c[1])), "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "tl tl-" + tg.kind });
+    tx.textContent = tg.label; sv.append(tx);
+  }
+  const n = T.nodes[ni];                                    // path arrow: only at a stop, only toward a filmed continuation
+  if (!leg && n.arrow && T.nodes[ni + 1] && isLeg(ni)) {
+    const a = pr(n.arrow[0] + rotAt(t) - rotAt(n.t), n.arrow[1]);
+    if (a && a[0] > 30 && a[0] < r.w - 30 && a[1] > 30 && a[1] < r.h - 30) {
+      const g = el("g", { id: "arrow", transform: `translate(${a[0].toFixed(1)} ${a[1].toFixed(1)})`, style: "cursor:pointer" });
+      g.append(el("circle", { r: 30 }), el("path", { d: "M-11 7 L0 -8 L11 7" }));
+      const tx = el("text", { y: 50, "text-anchor": "middle", "font-size": fs }); tx.textContent = T.nodes[ni + 1].name; g.append(tx);
+      sv.append(g); drawn.arrow = [a[0], a[1]];
+    }
+  }
+}
+
+/* ---------- route ---------- */
+const isLeg = i => T.nodes[i + 1] && T.nodes[i].clip === T.nodes[i + 1].clip && T.nodes[i + 1].t > T.nodes[i].t && !T.nodes[i + 1].cut;
+function ui() {
+  const n = T.nodes[ni], nx = T.nodes[ni + 1], playing = leg && !vid.paused;
+  $("where").replaceChildren(leg ? "A caminho: " + T.nodes[leg.to].name : n.name);
+  const sm = document.createElement("small"); sm.textContent = leg ? (playing ? "Andando · toque em Pausar para parar aqui" : "Parado no caminho · arraste para olhar em volta") : (ni + 1) + " de " + T.nodes.length + " · arraste para olhar em volta";
+  $("where").append(sm);
+  const go = $("go");
+  go.disabled = !leg && !nx;
+  go.textContent = leg ? (playing ? "⏸ Pausar" : "▶ Continuar") : !nx ? "Fim do roteiro" : isLeg(ni) ? "▶ Percorrer" : "▶ Próximo local";
+  $("back").disabled = !leg && ni === 0;
+}
+function closeAll() { $("routeBtn").textContent = "Roteiro"; $("scopeBtn").textContent = "Escopo"; $("routeList").hidden = true; $("scopeList").hidden = true; $("jump").hidden = true; clearTimeout(jumpTimer); select(null); }
+async function showNode(i, keepView) {
+  const my = ++gen; vid.pause(); leg = null; ni = i; closeAll(); ui();
+  const n = T.nodes[i];
+  try { if (!(await openAt(n.clip, n.t, my))) return; } catch (e) { return fail(); }
+  followGoal = 0; follow = 0;
+  if (!keepView) { view.lon = n.look ? n.look[0] : refAt(n.t); view.pitch = n.look ? n.look[1] : -6; }
+  room = wrap(view.lon - rotAt(n.t));
+  ui(); const nx = T.nodes[i + 1]; if (nx) loadClip(nx.clip).catch(() => {});
+}
+function arrive() { vid.pause(); vid.playbackRate = 1; ni = leg.to; leg = null; followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); needTex = true; ui(); }
+function go() {
+  if (!ready) return;
+  if (leg) {                                                // pause / continue in place: the video time is not touched
+    if (vid.paused) { vid.play().catch(fail); } else { vid.pause(); followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); }
+    return setTimeout(ui, 0);
+  }
+  const nx = T.nodes[ni + 1]; if (!nx) return;
+  select(null);
+  if (isLeg(ni)) { leg = { to: ni + 1, end: nx.t }; followGoal = 1; vid.playbackRate = 1; vid.play().then(ui).catch(fail); return ui(); }
+  $("jumpTo").textContent = nx.name; $("jumpNote").textContent = nx.cut || "Mudança de local: o trecho entre estes dois pontos não foi filmado."; $("jump").hidden = false;
+  const to = ni + 1; jumpTimer = setTimeout(() => showNode(to), 1800);
+}
+function back() { if (leg) return showNode(ni, true); if (ni > 0) showNode(ni - 1); }
+$("go").addEventListener("click", go); $("back").addEventListener("click", back);
+$("jump").addEventListener("click", () => { clearTimeout(jumpTimer); showNode(ni + 1); });
+addEventListener("keydown", e => {
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); go(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); if (!leg || vid.paused) go(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); back(); }
+  else if (e.key === "Escape") closeAll();
+});
+vid.addEventListener("pause", () => setTimeout(ui, 0)); vid.addEventListener("play", () => setTimeout(ui, 0));
+
+/* ---------- look around (full turn, never pulled back) and tap an outline ---------- */
+let ptr = null;
+stage.addEventListener("pointerdown", e => {
+  if (e.target.closest("button, a, .list, #sheet, #jump")) return;
+  ptr = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false };
+  try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+});
+stage.addEventListener("pointermove", e => {
+  if (!ptr || e.pointerId !== ptr.id) return;
+  if (!ptr.moved && Math.hypot(e.clientX - ptr.x0, e.clientY - ptr.y0) < 7) return;
+  if (!ptr.moved) { ptr.moved = true; stage.classList.add("drag"); followGoal = 0; follow = 0; room = wrap(view.lon - (ready ? rotAt(vid.currentTime) : 0)); }
+  const f = focal(size());
+  room = wrap(room - (e.clientX - ptr.x) / f / RAD);
+  view.pitch = Math.max(-80, Math.min(80, view.pitch + (e.clientY - ptr.y) / f / RAD));
+  ptr.x = e.clientX; ptr.y = e.clientY;
+});
+function endPtr(e) {
+  if (!ptr || e.pointerId !== ptr.id) return;
+  const p = ptr; ptr = null; stage.classList.remove("drag");
+  if (p.moved || e.type === "pointercancel") return;
+  const b = stage.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+  if (drawn.arrow && Math.hypot(x - drawn.arrow[0], y - drawn.arrow[1]) < 40) return go();
+  const hit = drawn.filter(d => inside(x, y, d.pts)).sort((a, b) => a.area - b.area)[0];
+  select(hit ? hit.key : null);
+}
+stage.addEventListener("pointerup", endPtr); stage.addEventListener("pointercancel", endPtr);
+function inside(x, y, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
+function select(key) {
+  sel = key; const s = $("sheet"); s.hidden = !key; if (!key) return;
+  const tg = T.targets[key]; s.className = tg.kind === "clean" ? "" : tg.kind;
+  $("sItem").textContent = tg.item + (tg.pending ? " · A CONFIRMAR" : ""); $("sDo").textContent = tg.do; $("sLimit").textContent = tg.limit || "";
+}
+$("sClose").addEventListener("click", () => select(null));
+
+/* ---------- route list and scope list ---------- */
+function lists() {
+  const rl = $("routeList"), ol = document.createElement("ol"); rl.replaceChildren(Object.assign(document.createElement("h2"), { textContent: "Roteiro" }), ol);
+  T.nodes.forEach((n, i) => {
+    if (i > 0 && !isLeg(i - 1)) { const g = document.createElement("li"); g.className = "gap"; g.append(Object.assign(document.createElement("div"), { textContent: "↕ " + (n.cut || "Mudança de local: trecho não filmado") })); ol.append(g); }
+    const li = document.createElement("li"), b = document.createElement("button"); b.type = "button"; b.dataset.node = i;
+    b.append((i + 1) + ". " + n.name, Object.assign(document.createElement("small"), { textContent: "Vídeo " + T.clips[n.clip].video.slice(1) + " · " + fmt(T.clips[n.clip].t0 + n.t) + (isLeg(i) ? " · segue andando até o próximo" : "") }));
+    b.addEventListener("click", () => showNode(i)); li.append(b); ol.append(li);
+  });
+  const sl = $("scopeList"), ul = document.createElement("ul"); sl.replaceChildren(Object.assign(document.createElement("h2"), { textContent: "Escopo · DFD 035/2026 · 19 itens" }), ul);
+  for (const s of T.scope) {
+    const li = document.createElement("li"); if (s.pending) li.className = "pend";
+    const node = s.node == null ? -1 : T.nodes.findIndex(n => n.id === s.node);
+    const b = document.createElement(node >= 0 ? "button" : "div"); if (node >= 0) { b.type = "button"; b.addEventListener("click", () => showNode(node)); }
+    b.append("Item " + s.item + " · " + s.text, Object.assign(document.createElement("small"), { textContent: s.status }));
+    li.append(b); ul.append(li);
+  }
+  const li = document.createElement("li"), a = document.createElement("a"); a.href = "guia-v5.html"; a.target = "_blank"; a.rel = "noopener";
+  a.append("Guia por fotos (versão anterior)", Object.assign(document.createElement("small"), { textContent: "18 paradas com foto fixa e a lista de pendências. Reserva caso o percurso não abra." })); li.append(a); ul.append(li);
+}
+function toggle(id) { const p = $(id), open = p.hidden; closeAll(); $("routeBtn").textContent = open && id === "routeList" ? "✕ Fechar" : "Roteiro"; $("scopeBtn").textContent = open && id === "scopeList" ? "✕ Fechar" : "Escopo"; if (open) { if (leg && !vid.paused) vid.pause(); p.hidden = false; p.scrollTop = 0; p.querySelectorAll("li.cur").forEach(x => x.classList.remove("cur")); const c = p.querySelector(`[data-node="${ni}"]`); if (c) c.parentNode.classList.add("cur"); } }
+$("routeBtn").addEventListener("click", () => toggle("routeList")); $("scopeBtn").addEventListener("click", () => toggle("scopeList"));
+
+window.__tour = { get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, sel, drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts })), arrow: drawn.arrow || null, gl: !!GL }; }, T };
+initGL(); lists(); ui();
+if (!GL) fail(); else { requestAnimationFrame(frame); showNode(0); }
+</script>
