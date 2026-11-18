@@ -1,78 +1,80 @@
 <title>Itirapina: Roteiro de Limpeza</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
-/* Layout: the building fills the screen; one bar of controls sits under it (beside it on a phone held sideways). */
+/* Layout: the building fills the screen. Floor rings move you through it; a slim dock underneath holds play and the room strip. */
 :root {
   color-scheme: dark;
   --bg: #0e1418; --panel: #16212a; --line: #2b3b47; --fg: #f3f6f8; --muted: #a9b8c3;
-  --clean: #19e0c3; --stop: #ff5a3c; --warn: #ffc53d; --btn: #f3f6f8; --btn-fg: #0e1418;
+  --clean: #19e0c3; --stop: #ff5a3c; --warn: #ffc53d;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); display: flex; flex-direction: column; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-text-size-adjust: 100%; }
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
-button:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
+button:focus-visible { outline: 3px solid var(--clean); outline-offset: 2px; }
 #stage { position: relative; flex: 1 1 auto; min-height: 0; background: #000; overflow: hidden; touch-action: none; cursor: grab; }
 #stage.drag { cursor: grabbing; }
 #gl, #ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#gl { transition: opacity .16s linear; } #stage.fade #gl { opacity: .25; }
 #vid { position: absolute; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
-.chip { position: absolute; background: rgba(14,20,24,.84); color: var(--fg); border-radius: 6px; font-weight: 700; font-size: clamp(14px, 2.2vmin, 18px); padding: .4em .75em; border: 0; }
-#where { left: max(12px, env(safe-area-inset-left, 0px)); top: 12px; font-weight: 800; font-size: clamp(17px, 3vmin, 28px); border-left: 6px solid var(--clean); max-width: calc(100% - 215px); line-height: 1.15; }
-@media (max-width: 520px) { #where { font-size: 15px; } #menu button { padding-inline: .55em; } }
-#where small { display: block; font-size: .62em; font-weight: 650; color: var(--muted); letter-spacing: .02em; }
-#menu, #where { z-index: 3; }
-#menu { right: max(12px, env(safe-area-inset-right, 0px)); top: 12px; display: flex; gap: 8px; background: none; padding: 0; }
-#menu button { position: static; min-height: 48px; min-width: 48px; border: 2px solid var(--muted); }
-#src { right: max(12px, env(safe-area-inset-right, 0px)); top: 68px; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; pointer-events: none; }
+.chip { position: absolute; background: rgba(14,20,24,.8); color: var(--fg); border-radius: 8px; font-weight: 700; font-size: clamp(14px, 2.2vmin, 18px); padding: .45em .8em; border: 0; }
+#where { left: max(12px, env(safe-area-inset-left, 0px)); top: 12px; font-size: clamp(16px, 2.8vmin, 24px); font-weight: 800; max-width: calc(100% - 130px); line-height: 1.15; z-index: 3; pointer-events: none; }
+#where small { font-size: .62em; font-weight: 650; color: var(--muted); margin-left: .6em; white-space: nowrap; }
+#scopeBtn { right: max(12px, env(safe-area-inset-right, 0px)); top: 12px; min-height: 48px; min-width: 48px; border: 2px solid var(--muted); z-index: 3; }
+#cue { left: 50%; bottom: 54px; transform: translateX(-50%); max-width: calc(100% - 24px); text-align: center; color: var(--fg); font-size: clamp(13px, 2vmin, 16px); font-weight: 650; pointer-events: none; }
+#msg { left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; max-width: min(86%, 30em); font-size: clamp(16px, 2.6vmin, 22px); line-height: 1.3; padding: .8em 1em; z-index: 4; }
+#msg a { color: var(--clean); }
 #scrub { position: absolute; left: max(14px, env(safe-area-inset-left, 0px)); right: max(14px, env(safe-area-inset-right, 0px)); bottom: 2px; height: 44px; touch-action: none; cursor: pointer; }
 #scrub i { position: absolute; display: block; }
-#scrub .track { left: 0; right: 0; top: 19px; height: 6px; border-radius: 3px; background: rgba(243,246,248,.4); box-shadow: 0 0 0 1px rgba(0,0,0,.55); }
-#scrub .fill { left: 0; top: 19px; height: 6px; border-radius: 3px; background: var(--clean); }
-#scrub .tick { top: 15px; width: 2px; height: 14px; margin-left: -1px; background: var(--fg); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
-#scrub .gap { top: 12px; width: 6px; height: 20px; margin-left: -3px; border-radius: 2px; background: var(--warn); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
-#scrub .thumb { top: 11px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 2px var(--bg); }
-#cue { left: 50%; bottom: 52px; transform: translateX(-50%); max-width: calc(100% - 24px); text-align: center; color: var(--muted); font-size: clamp(13px, 2vmin, 16px); font-weight: 650; pointer-events: none; }
-.lead { stroke: #fff; stroke-opacity: .85; stroke-width: 2; }
-#msg { left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; max-width: min(86%, 30em); font-size: clamp(16px, 2.6vmin, 22px); line-height: 1.3; padding: .8em 1em; }
-#msg a { color: var(--clean); }
-#jump { position: absolute; inset: 0; background: rgba(8,12,15,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; }
+#scrub .track { left: 0; right: 0; top: 20px; height: 4px; border-radius: 2px; background: rgba(243,246,248,.4); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+#scrub .fill { left: 0; top: 20px; height: 4px; border-radius: 2px; background: var(--clean); }
+#scrub .tick { top: 16px; width: 2px; height: 12px; margin-left: -1px; background: var(--fg); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+#scrub .gap { top: 13px; width: 5px; height: 18px; margin-left: -2.5px; border-radius: 2px; background: var(--warn); box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+#scrub .thumb { top: 13px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 0 2px var(--bg); }
+#jump { position: absolute; inset: 0; background: rgba(8,12,15,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; z-index: 5; }
 #jump b { font-size: clamp(22px, 4.4vmin, 40px); }
-#jump span { font-size: clamp(16px, 2.8vmin, 24px); color: var(--warn); max-width: 26em; line-height: 1.3; }
-#sheet { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(22,33,42,.96); border-top: 4px solid var(--clean); padding: 12px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); display: flex; gap: 12px; align-items: flex-start; }
+#jump span { font-size: clamp(15px, 2.4vmin, 20px); color: var(--muted); max-width: 26em; line-height: 1.3; }
+#sheet { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(22,33,42,.97); border-top: 4px solid var(--clean); padding: 12px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); display: flex; gap: 12px; align-items: flex-start; z-index: 4; }
 #sheet.out { border-top-color: var(--stop); } #sheet.note { border-top-color: var(--warn); }
 #sheet div { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-#sItem { font-size: clamp(13px, 2.2vmin, 18px); font-weight: 700; color: var(--muted); }
-#sDo { font-size: clamp(19px, 3.6vmin, 34px); font-weight: 750; line-height: 1.2; }
-#sLimit { font-size: clamp(16px, 2.9vmin, 26px); font-weight: 650; line-height: 1.25; color: var(--stop); }
+#sItem { font-size: clamp(14px, 2.2vmin, 18px); font-weight: 700; color: var(--muted); }
+#sDo { font-size: clamp(20px, 3.6vmin, 34px); font-weight: 750; line-height: 1.2; }
+#sLimit { font-size: clamp(17px, 2.9vmin, 26px); font-weight: 650; line-height: 1.25; color: var(--stop); }
 #sClose { flex: 0 0 auto; min-width: 48px; min-height: 48px; border: 2px solid var(--muted); border-radius: 8px; background: none; font-size: 22px; font-weight: 700; }
-.list { position: absolute; inset: 0; overflow: auto; background: var(--bg); padding: 70px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+.list { position: absolute; inset: 0; overflow: auto; background: var(--bg); padding: 70px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); z-index: 2; }
 .list h2 { margin: 0 0 10px; font-size: clamp(20px, 3.6vmin, 30px); }
-.list ol, .list ul { list-style: none; margin: 0 auto; padding: 0; max-width: 62em; display: flex; flex-direction: column; gap: 8px; }
+.list ul { list-style: none; margin: 0 auto; padding: 0; max-width: 62em; display: flex; flex-direction: column; gap: 8px; }
 .list li { display: flex; }
 .list li > button, .list li > div, .list li > a { flex: 1 1 auto; text-align: left; background: var(--panel); border: 0; border-left: 6px solid var(--clean); border-radius: 6px; padding: .65em .8em; font-size: clamp(16px, 2.7vmin, 22px); line-height: 1.3; min-height: 48px; color: var(--fg); text-decoration: none; display: block; }
-.list li.gap > div { border-left-color: var(--warn); color: var(--warn); font-size: clamp(14px, 2.2vmin, 18px); background: none; padding-block: .1em; min-height: 0; }
 .list li.pend > button, .list li.pend > div { border-left-color: var(--warn); }
-.list li.cur > button { box-shadow: inset 0 0 0 2px var(--clean); }
 .list small { display: block; color: var(--muted); font-size: .8em; font-weight: 600; }
-#bar { flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: stretch; padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-#bar button { min-height: 64px; border: 0; border-radius: 10px; font-size: clamp(20px, 3.2vmin, 30px); font-weight: 800; }
-#back { flex: 0 0 34%; background: transparent; box-shadow: inset 0 0 0 2px var(--muted); }
-#go { flex: 1 1 auto; background: var(--btn); color: var(--btn-fg); }
-#bar button:disabled { opacity: .3; cursor: default; }
+#dock { flex: 0 0 auto; background: var(--panel); border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; padding-block: 8px; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+#go { flex: 0 0 auto; min-height: 56px; min-width: 56px; padding: 0 18px; border: 0; border-radius: 28px; background: var(--fg); color: var(--bg); font-size: clamp(16px, 2.6vmin, 20px); font-weight: 800; white-space: nowrap; }
+#go:disabled { opacity: .35; cursor: default; }
+#reel { flex: 1 1 auto; min-width: 0; display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; padding-block: 2px; }
+#reel button { flex: 0 0 auto; width: 104px; padding: 0; border: 2px solid transparent; border-radius: 8px; background: #000; overflow: hidden; position: relative; }
+#reel button.cur { border-color: var(--clean); }
+#reel button.cut { margin-left: 10px; }
+#reel button.cut::before { content: ""; position: absolute; left: -9px; top: 6px; bottom: 6px; width: 3px; border-radius: 2px; background: var(--warn); }
+#reel img { display: block; width: 100%; height: 58px; object-fit: cover; }
+#reel span { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.85)); font-size: 11px; font-weight: 700; line-height: 1.15; padding: 10px 4px 3px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (orientation: landscape) and (max-height: 560px) {
   body { flex-direction: row; }
-  #bar { flex-direction: column-reverse; justify-content: flex-start; width: 200px; border-top: 0; border-left: 1px solid var(--line); padding-left: 12px; }
-  #bar button { min-height: 56px; flex: 0 0 auto; font-size: 20px; } #back { flex-basis: auto; }
+  #dock { flex-direction: column; align-items: stretch; width: 132px; border-top: 0; border-left: 1px solid var(--line); padding: 8px max(8px, env(safe-area-inset-right, 0px)) 8px 8px; }
+  #go { padding: 0 8px; font-size: 15px; }
+  #reel { flex-direction: column; overflow-x: hidden; overflow-y: auto; }
+  #reel button { width: 100%; } #reel button.cut { margin-left: 0; margin-top: 10px; } #reel button.cut::before { left: 6px; right: 6px; top: -9px; bottom: auto; width: auto; height: 3px; }
 }
-.t-clean { fill: var(--clean); fill-opacity: .26; stroke: var(--clean); }
-.t-out { fill: var(--stop); fill-opacity: .22; stroke: var(--stop); stroke-dasharray: 9 7; }
-.t-note { fill: var(--warn); fill-opacity: .12; stroke: var(--warn); }
-.t-sel { fill-opacity: .46; stroke-width: 6; }
+.t-clean { fill: var(--clean); fill-opacity: .16; stroke: var(--clean); }
+.t-out { fill: var(--stop); fill-opacity: .16; stroke: var(--stop); stroke-dasharray: 9 7; }
+.t-note { fill: var(--warn); fill-opacity: .1; stroke: var(--warn); }
+.t-sel { fill-opacity: .42; stroke-width: 6; }
 .tl { font-family: var(--font); font-weight: 800; paint-order: stroke; stroke: #000; stroke-opacity: .8; stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
 .tl-clean { fill: var(--clean); } .tl-out { fill: #ffb4a4; } .tl-note { fill: var(--warn); }
-#arrow circle { fill: rgba(243,246,248,.92); stroke: var(--bg); stroke-width: 3; }
-#arrow path { fill: none; stroke: var(--bg); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
-#arrow text { font-family: var(--font); font-weight: 800; fill: var(--fg); paint-order: stroke; stroke: #000; stroke-opacity: .8; stroke-width: 4px; }
+.lead { stroke: #fff; stroke-opacity: .85; stroke-width: 2; }
+.ring { fill: rgba(255,255,255,.22); stroke: #fff; stroke-width: 4; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7)); cursor: pointer; }
+.turn { cursor: pointer; } .turn circle { fill: rgba(14,20,24,.78); stroke: #fff; stroke-width: 2.5; } .turn path { fill: none; stroke: #fff; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.ring.back { fill: rgba(255,255,255,.1); stroke-opacity: .7; stroke-width: 3; }
 </style>
 
 <div id="stage">
@@ -80,90 +82,83 @@ button:focus-visible { outline: 4px solid var(--clean); outline-offset: 2px; }
   <video id="vid" muted playsinline webkit-playsinline preload="auto"></video>
   <svg id="ov" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista do prédio com as áreas de limpeza marcadas"></svg>
   <div id="where" class="chip"></div>
-  <div id="menu" class="chip"><button id="routeBtn" class="chip" type="button">Roteiro</button><button id="scopeBtn" class="chip" type="button">Escopo</button></div>
-  <div id="src" class="chip"></div>
+  <button id="scopeBtn" class="chip" type="button">Escopo</button>
   <div id="cue" class="chip" hidden></div>
   <div id="scrub" role="slider" aria-label="Linha do tempo do percurso" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="track"></i><i class="fill"></i><i class="thumb"></i></div>
+  <div id="scopeList" class="list" hidden></div>
   <div id="sheet" hidden><div><span id="sItem"></span><span id="sDo"></span><span id="sLimit"></span></div><button id="sClose" type="button" aria-label="Fechar">✕</button></div>
   <div id="jump" hidden><b id="jumpTo"></b><span id="jumpNote"></span></div>
-  <div id="routeList" class="list" hidden></div>
-  <div id="scopeList" class="list" hidden></div>
   <div id="msg" class="chip" hidden></div>
 </div>
-<div id="bar">
-  <button id="back" type="button">← Voltar</button>
-  <button id="go" type="button">▶ Percorrer</button>
+<div id="dock">
+  <button id="go" type="button">▶</button>
+  <div id="reel"></div>
 </div>
 
 <script>
 const T = /*__TOUR__*/{};
-const NS = "http://www.w3.org/2000/svg", RAD = Math.PI / 180, FPS = 10;
+const NS = "http://www.w3.org/2000/svg", RAD = Math.PI / 180, FPS = 10, RING_LAT = -17;
 const $ = id => document.getElementById(id);
 const vid = $("vid"), stage = $("stage");
 const wrap = a => ((a + 540) % 360) - 180;
 const lerpA = (a, b, k) => a + wrap(b - a) * k;
 
 /* ---------- state ---------- */
-let ni = 0;                 // node we are at, or the node the current leg started from
-let leg = null;             // { to: node index, end: clip seconds } while travelling (playing or paused mid-leg)
+let ni = 0;                 // stop we are at, or the stop the current walk started from
+let leg = null;             // { to, end } while between two stops (moving or standing part-way)
+let hopEnd = null;          // clip time where a one-ring move ends
 let clipId = null, ready = false, gen = 0;
-let view = { lon: 0, pitch: -6 };
+let view = { lon: 0, pitch: -6 }, zoom = 1;
 let room = 0;               // look direction fixed in the room: camera longitude = room + rot(t)
-let follow = 0;             // 1 = look along the route direction, 0 = hold the direction the person chose; eases between them
-let followGoal = 0;
-let sel = null, drawn = [], needTex = false, lastT = -1, jumpTimer = 0;
-let touched = false;        // the person dragged during this walk: never re-aim the view for them
-let aim = null;             // gentle re-framing toward the marked surfaces on a fresh arrival
+let follow = 0, followGoal = 0;   // 1 = look along the route (play button only); 0 = keep the person's own direction
+let sel = null, drawn = [], rings = [], needTex = false, lastT = -1, jumpTimer = 0, texKey = "";
+let touched = false, aim = null;
 
-/* ---------- media: each clip arrives as a Blob, so the frames can be drawn in 3D even from a local file ---------- */
+/* ---------- media: clips and stills arrive as Blobs, so they can be drawn in 3D even from a local file ---------- */
+async function loadBlobURL(name, ext, mime) {
+  try { const r = await fetch("media/" + name + "." + ext); if (!r.ok) throw 0; const b = await r.blob(); if (b.size < 1000) throw 0; return URL.createObjectURL(b); }
+  catch (e) {
+    await new Promise((ok, bad) => { const s = document.createElement("script"); s.src = "media/" + name + ".js"; s.onload = ok; s.onerror = () => bad(new Error("media")); document.head.append(s); });
+    const b64 = (window.__MEDIA || {})[name]; if (!b64) throw new Error("media");
+    const bin = atob(b64), u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+    window.__MEDIA[name] = null; return URL.createObjectURL(new Blob([u], { type: mime }));
+  }
+}
 const blobs = {};
-function loadClip(id) {
-  if (blobs[id]) return blobs[id];
-  return blobs[id] = (async () => {
-    try { const r = await fetch("media/" + id + ".mp4"); if (!r.ok) throw 0; const b = await r.blob(); if (b.size < 1000) throw 0; return URL.createObjectURL(b); }
-    catch (e) {
-      await new Promise((ok, bad) => { const s = document.createElement("script"); s.src = "media/" + id + ".js"; s.onload = ok; s.onerror = () => bad(new Error("media")); document.head.append(s); });
-      const b64 = (window.__MEDIA || {})[id]; if (!b64) throw new Error("media");
-      const bin = atob(b64), u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
-      window.__MEDIA[id] = null; return URL.createObjectURL(new Blob([u], { type: "video/mp4" }));
-    }
-  })();
+function loadClip(id) { return blobs[id] || (blobs[id] = loadBlobURL(id, "mp4", "video/mp4").catch(e => { delete blobs[id]; throw e; })); }
+const stills = new Map();   // viewpoint key -> { img }; only a few are kept decoded at once
+function ensureStill(key) {
+  if (!key) return; const had = stills.get(key);
+  if (had) { stills.delete(key); stills.set(key, had); return; }
+  const st = { img: null, url: null }; stills.set(key, st);
+  loadBlobURL("w_" + key, "jpg", "image/jpeg").then(url => { st.url = url; const im = new Image(); im.onload = () => { if (stills.get(key) === st && (!GL || im.naturalWidth <= GL.gl.getParameter(GL.gl.MAX_TEXTURE_SIZE))) st.img = im; }; im.src = url; }).catch(() => { if (stills.get(key) === st) stills.delete(key); });
+  while (stills.size > 7) { const [k, old] = stills.entries().next().value; stills.delete(k); if (old.url) URL.revokeObjectURL(old.url); if (texKey === "s" + k) texKey = ""; }
 }
-/* sharp still of each stop (full-resolution source frame); the walk between stops uses the video */
-const stills = {}; let texKey = "";
-function loadStill(i) {
-  const n = T.nodes[i]; if (!n || stills[i]) return; const st = stills[i] = { img: null }, id = "s_" + n.id;
-  (async () => {
-    let url;
-    try { const r = await fetch("media/" + id + ".jpg"); if (!r.ok) throw 0; const b = await r.blob(); if (b.size < 1000) throw 0; url = URL.createObjectURL(b); }
-    catch (e) {
-      await new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "media/" + id + ".js"; sc.onload = ok; sc.onerror = () => bad(new Error("still")); document.head.append(sc); });
-      const b64 = (window.__MEDIA || {})[id]; if (!b64) throw new Error("still");
-      const bin = atob(b64), u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
-      window.__MEDIA[id] = null; url = URL.createObjectURL(new Blob([u], { type: "image/jpeg" }));
-    }
-    const im = new Image(); im.onload = () => { if (!GL || im.naturalWidth <= GL.gl.getParameter(GL.gl.MAX_TEXTURE_SIZE)) st.img = im; }; im.src = url;
-  })().catch(() => {});
-}
-function seekTo(t) { return new Promise(ok => { if (Math.abs(vid.currentTime - t) < 0.001 && vid.readyState >= 2) return ok(); const f = () => { vid.removeEventListener("seeked", f); ok(); }; vid.addEventListener("seeked", f); vid.currentTime = t; }); }
+function seekTo(t) { return new Promise(ok => { if (Math.abs(vid.currentTime - t) < 0.001 && vid.readyState >= 2 && !vid.seeking) return ok(); let done = false; const f = () => { if (done) return; done = true; vid.removeEventListener("seeked", f); ok(); }; vid.addEventListener("seeked", f); setTimeout(f, 4000); vid.currentTime = t; }); }
 async function openAt(id, t, my) {
+  if (!scrubbing) stage.classList.add("fade");
   if (clipId !== id) {
-    ready = false; say("Carregando o trecho…");
+    ready = false; clipId = null; say("Carregando…");
     const url = await loadClip(id); if (my !== gen) return false;
     await new Promise((ok, bad) => { const a = () => { vid.removeEventListener("loadeddata", a); vid.removeEventListener("error", b); ok(); }, b = () => { vid.removeEventListener("loadeddata", a); vid.removeEventListener("error", b); bad(new Error("video")); }; vid.addEventListener("loadeddata", a); vid.addEventListener("error", b); vid.src = url; vid.load(); });
     if (my !== gen) return false; clipId = id;
   }
   await seekTo(t); if (my !== gen) return false;
-  ready = true; needTex = true; say(""); return true;
+  ready = true; needTex = true; say(""); stage.classList.remove("fade"); return true;
 }
 function say(text, html) { const m = $("msg"); m.hidden = !text; if (html) m.innerHTML = text; else m.textContent = text; }
-function fail() { ready = false; say('Não foi possível abrir as imagens deste trecho. Use o <a href="guia-v5.html" target="_blank" rel="noopener">guia por fotos</a>.', true); }
+function fail() { ready = false; stage.classList.remove("fade"); say('Não foi possível abrir as imagens deste trecho. Use o <a href="guia-v5.html" target="_blank" rel="noopener">guia por fotos</a>.', true); }
+function playErr(e) { if (e && e.name === "AbortError") return; if (e && e.name === "NotAllowedError") { say("Toque em ▶ outra vez."); setTimeout(() => say(""), 1600); return; } fail(); }
 
 /* ---------- clip data ---------- */
 function sample(arr, t, ang) { const x = Math.max(0, Math.min(arr.length - 1, t * FPS)), i = Math.floor(x), j = Math.min(arr.length - 1, i + 1), k = x - i; return ang ? lerpA(arr[i], arr[j], k) : arr[i] + (arr[j] - arr[i]) * k; }
 const clip = () => T.clips[clipId];
-const refAt = t => sample(clip().ref, t, true), rotAt = t => sample(clip().rot, t, false);
-const fmt = s => { const m = Math.floor(s / 60), r = s - m * 60; return String(m).padStart(2, "0") + ":" + r.toFixed(1).padStart(4, "0"); };
+const refAt = t => sample(clip().ref, t, true), rotAt = t => sample(clip().rot, t, false), hdAt = t => sample(clip().hd, t, true);
+function roomAvg(c, tA, tB) {             // mean direction of travel between two moments, as a direction fixed in the room
+  const C = T.clips[c], a = Math.max(0, Math.round(Math.min(tA, tB) * FPS)), b = Math.min(C.hd.length - 1, Math.round(Math.max(tA, tB) * FPS)); let x = 0, y = 0;
+  for (let f = a; f <= b; f++) { const h = (C.hd[f] - C.rot[f]) * RAD; x += Math.cos(h); y += Math.sin(h); }
+  return Math.atan2(y, x) / RAD;
+}
 
 /* ---------- 3D drawing ---------- */
 let GL = null;
@@ -188,11 +183,13 @@ void main(){ vec2 p = gl_FragCoord.xy - res*0.5;
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0]));
-    GL = { gl, c, res: gl.getUniformLocation(p, "res"), f: gl.getUniformLocation(p, "f"), yp: gl.getUniformLocation(p, "yp") };
+    GL = { gl, c, res: gl.getUniformLocation(p, "res"), f: gl.getUniformLocation(p, "f"), yp: gl.getUniformLocation(p, "yp") }; texKey = ""; needTex = true;
   } catch (e) { GL = null; }
 }
+$("gl").addEventListener("webglcontextlost", e => { e.preventDefault(); GL = null; });
+$("gl").addEventListener("webglcontextrestored", () => { initGL(); });
 function size() { const r = stage.getBoundingClientRect(); return { w: Math.max(1, r.width), h: Math.max(1, r.height) }; }
-function focal(r) { return Math.sqrt(r.w * r.h) / (2 * Math.tan(40 * RAD)); }
+function focal(r) { return zoom * Math.sqrt(r.w * r.h) / (2 * Math.tan(40 * RAD)); }
 function projector(r) {
   const f = focal(r), cy = Math.cos(view.lon * RAD), sy = Math.sin(view.lon * RAD), cp = Math.cos(view.pitch * RAD), sp = Math.sin(view.pitch * RAD);
   return (lon, lat) => {
@@ -203,50 +200,45 @@ function projector(r) {
 }
 function el(n, at) { const e = document.createElementNS(NS, n); for (const k in at) e.setAttribute(k, at[k]); return e; }
 
-/* outlines mapped for the exact frame on screen; nothing is drawn where no verified outline exists for that moment */
+/* outlines exist only for the exact frames where they were drawn and checked */
 function outlinesAt(t) {
   const tr = T.tracks[clipId] || {}, i = Math.round(t * FPS), out = [];
   for (const id in tr) { const p = tr[id][i]; if (p) out.push({ id, p }); }
   return out;
 }
-function nearestCue(t) {
-  const tr = T.tracks[clipId] || {}, i = Math.round(t * FPS); let best = null;
-  for (const id in tr) for (const k in tr[id]) { const d = +k - i; if (best === null || Math.abs(d) < Math.abs(best)) best = d; }
-  if (best === null) return "Sem marcação confiável neste trecho.";
-  return "Sem marcação confiável neste quadro. A mais próxima fica a " + Math.max(1, Math.round(Math.abs(best) / FPS)) + " s " + (best > 0 ? "à frente." : "atrás.");
-}
 function frame() {
   requestAnimationFrame(frame);
   if (!GL || !ready || !clipId) return;
   const r = size(), gl = GL.gl, t = vid.currentTime, playing = !vid.paused;
-  if (leg && playing) {                                   // natural stop at the arrival point
-    const left = leg.end - t;
-    vid.playbackRate = left < 0.8 ? 0.55 : 1;
-    if (left <= 0.02) arrive();
+  if (leg && playing) {
+    const end = hopEnd != null ? Math.min(hopEnd, leg.end) : leg.end, left = end - t;
+    vid.playbackRate = hopEnd != null ? (left < 0.45 ? 1 : 2.5) : (left < 0.8 ? 0.55 : 1);
+    if (left <= 0.02) { if (end < leg.end - 0.05) stopHere(end); else arrive(); }
   }
   follow += (followGoal - follow) * (followGoal > follow ? 0.02 : 1);
-  if (aim) { const k = 0.07; room = wrap(room + wrap(aim[0] - (room + rotAt(t))) * k); view.pitch += (aim[1] - view.pitch) * k; if (Math.abs(wrap(aim[0] - (room + rotAt(t)))) < 0.3) aim = null; }
+  if (aim) { const k = 0.07, d = wrap(aim[0] - (room + rotAt(t))); room = wrap(room + d * k); view.pitch += (aim[1] - view.pitch) * k; if (Math.abs(d) < 0.3 && Math.abs(aim[1] - view.pitch) < 0.3) aim = null; }
   const held = room + rotAt(t);
   view.lon = wrap(follow > 0.002 ? lerpA(held, refAt(t), follow) : held);
   if (follow > 0.002) { room = wrap(view.lon - rotAt(t)); view.pitch += (-6 - view.pitch) * 0.03 * follow; }
   const dpr = Math.min(2, window.devicePixelRatio || 1), cw = Math.round(r.w * dpr), ch = Math.round(r.h * dpr);
   if (GL.c.width !== cw || GL.c.height !== ch) { GL.c.width = cw; GL.c.height = ch; }
-  const sharp = !leg && stills[ni] && stills[ni].img && T.nodes[ni].clip === clipId && Math.abs(t - T.nodes[ni].t) < 0.06 ? stills[ni].img : null;
+  const key = playing ? null : wpKey(clipId, t), st = key && stills.get(key), sharp = st && st.img;
   try {
-    if (sharp) { if (texKey !== "s" + ni) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, sharp); texKey = "s" + ni; } }
+    if (sharp) { if (texKey !== "s" + key) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, sharp); texKey = "s" + key; } }
     else if ((playing || needTex || t !== lastT || texKey !== "v") && vid.readyState >= 2) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, vid); needTex = false; lastT = t; texKey = "v"; }
-  } catch (e) { GL = null; return fail(); }
+  } catch (e) { return fail(); }
   gl.viewport(0, 0, cw, ch); gl.uniform2f(GL.res, cw, ch); gl.uniform1f(GL.f, focal(r) * dpr); gl.uniform2f(GL.yp, view.lon * RAD, view.pitch * RAD);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  overlay(r, t);
+  overlay(r, t, playing);
   drawBar(t);
-  $("src").textContent = "Vídeo " + clip().video.slice(1) + " · " + fmt(clip().t0 + t);
 }
-function overlay(r, t) {
-  const sv = $("ov"), pr = projector(r); sv.setAttribute("viewBox", `0 0 ${r.w} ${r.h}`); sv.replaceChildren(); drawn = [];
-  const fs = Math.max(13, Math.min(19, r.w / 46));
-  for (const o of outlinesAt(t)) {
-    const tg = T.targets[o.id.split("@")[0]], pts = [];
+function overlay(r, t, playing) {
+  const sv = $("ov"), pr = projector(r); sv.setAttribute("viewBox", `0 0 ${r.w} ${r.h}`); sv.replaceChildren(); drawn = []; rings = [];
+  const cue = $("cue");
+  if (playing || !$("jump").hidden) { cue.hidden = true; return; }
+  const fs = Math.max(15, Math.min(20, r.w / 40)), all = outlinesAt(t);
+  for (const o of all) {
+    const pts = [];
     for (let k = 0; k < o.p.length; k += 2) { const q = pr(o.p[k], o.p[k + 1]); if (!q) { pts.length = 0; break; } pts.push(q); }
     if (pts.length < 3) continue;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, area = 0;
@@ -254,122 +246,175 @@ function overlay(r, t) {
     if (x1 < 0 || x0 > r.w || y1 < 0 || y0 > r.h) continue;
     drawn.push({ id: o.id, key: o.id.split("@")[0], pts, area: Math.abs(area) / 2, c: [(x0 + x1) / 2, (y0 + y1) / 2] });
   }
-  drawn.sort((a, b) => b.area - a.area);                  // small outlines end up on top of large ones
-  for (const d of drawn) {
-    const tg = T.targets[d.key];
-    sv.append(el("polygon", { points: d.pts.map(q => q[0].toFixed(1) + "," + q[1].toFixed(1)).join(" "), class: "t-" + tg.kind + (sel === d.key ? " t-sel" : ""), "stroke-width": 4, "stroke-linejoin": "round" }));
-  }
-  const n = T.nodes[ni]; let arrowAt = null;
-  if (!leg && n.arrow && T.nodes[ni + 1] && isLeg(ni) && T.nodes[ni + 1].clip === clipId) { const a = pr(n.arrow[0] + rotAt(t) - rotAt(n.t), n.arrow[1]); if (a && a[0] > 30 && a[0] < r.w - 30 && a[1] > 30 && a[1] < r.h - 30) arrowAt = a; }
-  const placed = [];
+  drawn.sort((a, b) => b.area - a.area);
+  for (const d of drawn) sv.append(el("polygon", { points: d.pts.map(q => q[0].toFixed(1) + "," + q[1].toFixed(1)).join(" "), class: "t-" + T.targets[d.key].kind + (sel === d.key ? " t-sel" : ""), "stroke-width": 3, "stroke-linejoin": "round" }));
+  // floor rings: one step ahead and one step back along the filmed path
+  const nb = neighbors(t);
+  const ring = (w, fwd) => {
+    if (!w) return; let lon;
+    if (fwd) lon = w.clip === clipId ? roomAvg(clipId, t, w.t) + rotAt(t) : roomAvg(w.clip, 0, w.t) + T.clips[w.clip].rot[0];
+    else { if (w.clip !== clipId) return; lon = roomAvg(clipId, w.t, t) + rotAt(t) + 180; }
+    const a = pr(lon, RING_LAT);
+    if (!a || a[0] < 20 || a[0] > r.w - 20 || a[1] < 60 || a[1] > r.h - 34) {
+      if (!fwd) return;                                     // the way ahead is out of view: an edge arrow turns you toward it
+      const right = wrap(lon - view.lon) > 0, x = right ? r.w - 34 : 34, y = r.h * 0.55, g = el("g", { class: "turn", transform: `translate(${x} ${y.toFixed(1)})` });
+      g.append(el("circle", { r: 24 }), el("path", { d: right ? "M-6 -10 L6 0 L-6 10" : "M6 -10 L-6 0 L6 10" })); sv.append(g);
+      rings.push({ x, y, turn: [lon, -8], fwd: true, w }); return;
+    }
+    const k = fwd ? 1 : 0.72; sv.append(el("ellipse", { cx: a[0].toFixed(1), cy: a[1].toFixed(1), rx: 40 * k, ry: 16 * k, class: "ring" + (fwd ? "" : " back") }));
+    rings.push({ x: a[0], y: a[1], w, fwd });
+  };
+  ring(nb.back, false); ring(nb.fwd, true);
+  const placed = [], clash = (x, y, w) => rings.some(g => Math.abs(x - g.x) < w + 44 && Math.abs(y - g.y) < 30) || placed.some(p => Math.abs(p[0] - x) < p[2] + w && Math.abs(p[1] - y) < fs * 1.25);
   for (const d of [...drawn].sort((a, b) => a.area - b.area)) {
-    const tg = T.targets[d.key], small = d.area < 3200;
+    const tg = T.targets[d.key], small = d.area < 3600;
     const tx = el("text", { x: 0, y: 0, "font-size": fs, "text-anchor": "middle", "dominant-baseline": "central", class: "tl tl-" + tg.kind });
     tx.textContent = tg.label; sv.append(tx);
-    const w = tx.getComputedTextLength() / 2 + 6, top = Math.min(...d.pts.map(q => q[1]));
-    let x = Math.max(w, Math.min(r.w - w, d.c[0])), y = small ? top - fs * 1.5 : d.c[1];
-    y = Math.max(62, Math.min(r.h - 16, y));
-    const hits = () => (arrowAt && Math.abs(x - arrowAt[0]) < w + 34 && y > arrowAt[1] - 44 && y < arrowAt[1] + 66) || placed.some(p => Math.abs(p[0] - x) < p[2] + w && Math.abs(p[1] - y) < fs * 1.25);
-    for (let k = 0; k < 6 && hits(); k++) y = y - fs * 1.35 < 62 ? y + fs * 1.35 * (k + 2) : y - fs * 1.35;
-    y = Math.max(62, Math.min(r.h - 16, y));
+    const w = tx.getComputedTextLength() / 2 + 6, top = Math.min(...d.pts.map(q => q[1])), lo = 66, hi = r.h - 58;
+    let x = Math.max(w, Math.min(r.w - w, d.c[0])), y = Math.max(lo, Math.min(hi, small ? top - fs * 1.5 : d.c[1]));
+    for (let k = 0; k < 7 && clash(x, y, w); k++) y = y - fs * 1.35 < lo ? Math.min(hi, y + fs * 1.35 * (k + 2)) : y - fs * 1.35;
     tx.setAttribute("x", x.toFixed(1)); tx.setAttribute("y", y.toFixed(1)); placed.push([x, y, w]); d.label = [x, y, w];
     if (small || Math.abs(y - d.c[1]) > fs * 2) sv.insertBefore(el("line", { x1: d.c[0].toFixed(1), y1: (small ? top : d.c[1]).toFixed(1), x2: x.toFixed(1), y2: (y + (y < d.c[1] ? fs * 0.6 : -fs * 0.6)).toFixed(1), class: "lead" }), tx);
   }
-  const cue = $("cue"), all = outlinesAt(t).length;
-  if (drawn.length || vid.paused === false) cue.hidden = true;
-  else { cue.hidden = false; cue.textContent = all ? "Há " + all + (all === 1 ? " área marcada" : " áreas marcadas") + " fora da vista: arraste para olhar em volta." : nearestCue(t); }                                    // path arrow: only at a stop, only toward a filmed continuation
-  if (arrowAt) {
-    const a = arrowAt;
-    {
-      const g = el("g", { id: "arrow", transform: `translate(${a[0].toFixed(1)} ${a[1].toFixed(1)})`, style: "cursor:pointer" });
-      g.append(el("circle", { r: 30 }), el("path", { d: "M-11 7 L0 -8 L11 7" }));
-      const tx = el("text", { y: 50, "text-anchor": "middle", "font-size": fs }); tx.textContent = T.nodes[ni + 1].name; g.append(tx);
-      sv.append(g); drawn.arrow = [a[0], a[1]];
-    }
-  }
+  if (!drawn.length && all.length) { cue.hidden = false; cue.textContent = (all.length === 1 ? "1 área marcada" : all.length + " áreas marcadas") + " fora da vista: arraste para olhar em volta."; } else cue.hidden = true;
 }
 
-/* ---------- route ---------- */
+/* ---------- the filmed path: stops, the walks between them, and viewpoints every few steps ---------- */
 const isLeg = i => T.nodes[i + 1] && !T.nodes[i + 1].cut && ((T.nodes[i].clip === T.nodes[i + 1].clip && T.nodes[i + 1].t > T.nodes[i].t) || T.nodes[i + 1].cont);
 const framing = n => { const r = size(), a = r.h > r.w ? (n.frame || n.look) : (n.look || n.frame); return a || null; };
+const SEG = [], WP = [], WPK = new Set(); let TOTAL = 0;
+function buildPath() {
+  for (let i = 0; i < T.nodes.length - 1; i++) if (isLeg(i)) {
+    const a = T.nodes[i], b = T.nodes[i + 1], t0 = a.clip === b.clip ? a.t : 0;
+    SEG.push({ i, clip: b.clip, t0, t1: b.t, at: TOTAL, len: b.t - t0 }); TOTAL += b.t - t0;
+  }
+  SEG.forEach((sg, k) => (T.way[k] || []).forEach(t => { const key = sg.clip + "_" + Math.round(t * FPS); if (WPK.has(key)) return; WPK.add(key); WP.push({ seg: k, t, clip: sg.clip, pos: sg.at + t - sg.t0, key }); }));
+  const bar = $("scrub"), mark = (cls, x) => { const m = document.createElement("i"); m.className = cls; m.style.left = (100 * x / TOTAL) + "%"; bar.insertBefore(m, bar.querySelector(".thumb")); };
+  SEG.forEach((sg, k) => { const prev = SEG[k - 1]; mark(k && prev.i + 1 !== sg.i ? "gap" : "tick", sg.at); });
+  mark("tick", TOTAL);
+}
+function wpKey(c, t) { const i = Math.round(t * FPS), k = c + "_" + i; return WPK.has(k) && Math.abs(t - i / FPS) < 0.07 ? k : null; }
+function curSeg() { let k = SEG.findIndex(x => x.i === ni); if (k < 0 && !leg) k = SEG.findIndex(x => x.i === ni - 1); return k; }
+function barPos(t) {
+  if (leg) { const sg = SEG.find(x => x.i === ni); return sg ? sg.at + Math.max(0, Math.min(sg.len, t - sg.t0)) : 0; }
+  const after = SEG.find(x => x.i === ni); if (after) return after.at;
+  const before = SEG.find(x => x.i === ni - 1); return before ? before.at + before.len : 0;
+}
+function neighbors(t) {
+  const k = curSeg(); if (k < 0) return {}; const pos = barPos(t), joined = (a, b) => SEG[a] && SEG[b] && SEG[a].i + 1 === SEG[b].i; let fwd = null, back = null;
+  for (const w of WP) if (w.pos > pos + 0.15 && (w.seg === k || (w.seg === k + 1 && joined(k, k + 1)))) { fwd = w; break; }
+  for (let j = WP.length - 1; j >= 0; j--) { const w = WP[j]; if (w.pos < pos - 0.15 && (w.seg === k || (w.seg === k - 1 && joined(k - 1, k)))) { back = w; break; } }
+  return { fwd, back };
+}
+function standing() {            // have the sharp picture ready for here and for one step either way
+  if (!clipId) return; const t = vid.currentTime; ensureStill(wpKey(clipId, t)); const nb = neighbors(t);
+  if (nb.fwd) { ensureStill(nb.fwd.key); if (nb.fwd.clip !== clipId) loadClip(nb.fwd.clip).catch(() => {}); }
+  if (nb.back) ensureStill(nb.back.key);
+  const nx = T.nodes[ni + 1]; if (nx) loadClip(nx.clip).catch(() => {});
+}
 function ui() {
-  const n = T.nodes[ni], nx = T.nodes[ni + 1], playing = leg && !vid.paused;
-  $("where").replaceChildren(leg ? "A caminho: " + T.nodes[leg.to].name : n.name);
-  const sm = document.createElement("small"); sm.textContent = leg ? (playing ? "Andando · toque em Pausar para parar aqui" : "Parado no caminho · arraste para olhar em volta") : (ni + 1) + " de " + T.nodes.length + " · arraste para olhar em volta";
-  $("where").append(sm);
-  const go = $("go");
-  go.disabled = !leg && !nx;
-  go.textContent = leg ? (playing ? "⏸ Pausar" : "▶ Continuar") : !nx ? "Fim do roteiro" : isLeg(ni) ? "▶ Percorrer" : "▶ Próximo local";
-  $("back").disabled = !leg && ni === 0;
+  const n = T.nodes[ni], nx = T.nodes[ni + 1], playing = leg && !vid.paused, cur = leg ? -1 : ni;
+  $("where").replaceChildren(leg ? "A caminho: " + T.nodes[leg.to].name : n.name, Object.assign(document.createElement("small"), { textContent: leg ? "" : (ni + 1) + " / " + T.nodes.length }));
+  const go = $("go"); go.disabled = !leg && !nx;
+  go.textContent = leg ? (playing ? "⏸ Pausar" : "▶ Continuar") : !nx ? "Fim" : isLeg(ni) ? "▶ Percorrer" : "▶ Próximo local";
+  document.querySelectorAll("#reel button").forEach((b, i) => { const on = i === (leg ? leg.to : ni); if (on && !b.classList.contains("cur")) b.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); b.classList.toggle("cur", on); });
 }
-function closeAll() { $("routeBtn").textContent = "Roteiro"; $("scopeBtn").textContent = "Escopo"; $("routeList").hidden = true; $("scopeList").hidden = true; $("jump").hidden = true; clearTimeout(jumpTimer); select(null); }
-async function showNode(i, keepView) {
-  const my = ++gen; vid.pause(); leg = null; ni = i; closeAll(); ui();
-  const n = T.nodes[i];
+function closeAll() { $("scopeBtn").textContent = "Escopo"; $("scopeList").hidden = true; $("jump").hidden = true; clearTimeout(jumpTimer); select(null); }
+async function showNode(i, keep) {
+  const my = ++gen, n = T.nodes[i], same = clipId === n.clip; vid.pause(); vid.playbackRate = 1; hopEnd = null; leg = null; ni = i; closeAll(); ui();
   try { if (!(await openAt(n.clip, n.t, my))) return; } catch (e) { return fail(); }
-  followGoal = 0; follow = 0;
-  aim = null; touched = false;
-  if (!keepView) { const a = framing(n); view.lon = a ? a[0] : refAt(n.t); view.pitch = a ? a[1] : -6; }
-  room = wrap(view.lon - rotAt(n.t));
-  ui(); const nx = T.nodes[i + 1]; if (nx) loadClip(nx.clip).catch(() => {});
-  loadStill(i); loadStill(i + 1);
+  followGoal = 0; follow = 0; aim = null;
+  if (!keep) { touched = false; const a = framing(n); view.lon = a ? a[0] : refAt(n.t); view.pitch = a ? a[1] : -6; zoom = 1; }
+  if (!(keep && same)) room = wrap(view.lon - rotAt(n.t));
+  ui(); standing();
 }
-function arrive() { vid.pause(); vid.playbackRate = 1; ni = leg.to; leg = null; followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); needTex = true; if (!touched) aim = framing(T.nodes[ni]); ui(); }
-function go() {
+async function holdAt(L, keep) {                           // stand at an exact filmed moment between two stops
+  const my = ++gen, lon = view.lon, was = clipId; vid.pause(); vid.playbackRate = 1; hopEnd = null; closeAll(); aim = null; followGoal = 0; follow = 0;
+  ni = L.sg.i; leg = { to: L.sg.i + 1, end: L.sg.t1 };
+  try { if (!(await openAt(L.sg.clip, L.t, my))) return; } catch (e) { return fail(); }
+  if (was !== L.sg.clip) room = wrap(lon - rotAt(L.t)); else if (!keep && !touched) { view.lon = hdAt(L.t); room = wrap(view.lon - rotAt(L.t)); }
+  ui(); standing();
+}
+function settle(t) { if (Math.abs(vid.currentTime - t) > 0.012) vid.currentTime = t; needTex = true; setTimeout(standing, 0); }
+function stopHere(t) { vid.pause(); vid.playbackRate = 1; hopEnd = null; followGoal = 0; follow = 0; settle(t); ui(); }
+function arrive() {
+  const n = T.nodes[leg.to], auto = hopEnd == null; vid.pause(); vid.playbackRate = 1; hopEnd = null; ni = leg.to; leg = null; followGoal = 0; follow = 0;
+  if (auto && !touched) aim = framing(n); settle(n.t); ui();
+}
+function go(hopTo) {
   if (!ready) return;
+  if (!$("jump").hidden) { clearTimeout(jumpTimer); return showNode(ni + 1); }
   if (leg) {                                                // pause / continue in place: the video time is not touched
-    if (vid.paused) { vid.play().catch(fail); } else { vid.pause(); followGoal = 0; follow = 0; room = wrap(view.lon - rotAt(vid.currentTime)); }
+    if (vid.paused) { hopEnd = null; vid.play().catch(playErr); } else { vid.pause(); hopEnd = null; followGoal = 0; follow = 0; setTimeout(standing, 0); }
     return setTimeout(ui, 0);
   }
   const nx = T.nodes[ni + 1]; if (!nx) return;
   select(null);
   if (isLeg(ni)) {
-    aim = null; touched = false;
-    const start = () => { leg = { to: ni + 1, end: nx.t }; followGoal = 1; vid.playbackRate = 1; vid.play().then(ui).catch(fail); ui(); };
+    aim = null; if (!hopTo) touched = false;
+    const start = () => { leg = { to: ni + 1, end: nx.t }; hopEnd = hopTo ? (SEG[hopTo.seg].i === ni ? hopTo.t : nx.t) : null; followGoal = hopTo ? 0 : 1; vid.playbackRate = 1; vid.play().then(ui).catch(playErr); ui(); };
     if (nx.clip === clipId) return start();
-    const my = ++gen, lon = view.lon;                      // same recording continues in the next file: keep the exact view
+    const my = ++gen, lon = view.lon;                      // the same recording continues in the next file: keep the exact view
     return openAt(nx.clip, 0, my).then(ok => { if (!ok) return; room = wrap(lon - rotAt(0)); follow = 0; start(); }).catch(fail);
   }
-  $("jumpTo").textContent = nx.name; $("jumpNote").textContent = nx.cut || "Mudança de local: o trecho entre estes dois pontos não foi filmado."; $("jump").hidden = false;
-  const to = ni + 1; jumpTimer = setTimeout(() => showNode(to), 1800);
+  $("jumpTo").textContent = nx.name; $("jumpNote").textContent = nx.cut || "Mudança de local."; $("jump").hidden = false;
+  const to = ni + 1; clearTimeout(jumpTimer); jumpTimer = setTimeout(() => showNode(to), 1800);
 }
-function back() { if (leg) return showNode(ni, true); if (ni > 0) showNode(ni - 1); }
-$("go").addEventListener("click", go); $("back").addEventListener("click", back);
+function hop(w, fwd) {                                     // one ring: glide ahead through the real footage, or step back
+  if (!ready || !w) return; select(null); aim = null;
+  if (!fwd) { const sg = SEG[w.seg]; if (Math.abs(w.t - sg.t1) < 0.05) return showNode(sg.i + 1, true); if (Math.abs(w.t - sg.t0) < 0.05) return showNode(sg.i, true); return holdAt({ sg, t: w.t }, true); }
+  if (leg) { hopEnd = SEG[w.seg].i === ni ? w.t : leg.end; followGoal = 0; follow = 0; vid.play().catch(playErr); return setTimeout(ui, 0); }
+  go(w);
+}
+function back() { const nb = neighbors(vid.currentTime); if (ready && nb.back) return hop(nb.back, false); if (leg) return showNode(ni, true); if (ni > 0) showNode(ni - 1); }
+$("go").addEventListener("click", () => go());
 $("jump").addEventListener("click", () => { clearTimeout(jumpTimer); showNode(ni + 1); });
 addEventListener("keydown", e => {
+  if (e.repeat) return;
+  if (e.key === "Escape") return closeAll();
+  if (!$("scopeList").hidden) return;
+  if ((e.key === " " || e.key === "Enter") && e.target.closest && e.target.closest("button, a")) return;
   if (e.key === " " || e.key === "Enter") { e.preventDefault(); go(); }
-  else if (e.key === "ArrowRight") { e.preventDefault(); if (!leg || vid.paused) go(); }
-  else if (e.key === "ArrowLeft") { e.preventDefault(); back(); }
-  else if (e.key === "Escape") closeAll();
+  else if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); const nb = neighbors(vid.currentTime); if (vid.paused) { if (nb.fwd) hop(nb.fwd, true); else go(); } }
+  else if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); back(); }
 });
 vid.addEventListener("pause", () => setTimeout(ui, 0)); vid.addEventListener("play", () => setTimeout(ui, 0));
 
-/* ---------- look around (full turn, never pulled back) and tap an outline ---------- */
-let ptr = null;
+/* ---------- look around (full turn, never pulled back), zoom, tap a ring or an outline ---------- */
+let ptr = null, pinch = null; const touches = new Map();
+const freeView = () => { touched = true; aim = null; followGoal = 0; follow = 0; room = wrap(view.lon - (ready ? rotAt(vid.currentTime) : 0)); };
 stage.addEventListener("pointerdown", e => {
   if (e.target.closest("button, a, .list, #sheet, #jump, #scrub")) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: zoom }; ptr = null; return; }
   ptr = { id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false };
   try { stage.setPointerCapture(e.pointerId); } catch (err) {}
 });
 stage.addEventListener("pointermove", e => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch && touches.size === 2) { const [a, b] = [...touches.values()]; zoom = Math.max(1, Math.min(3, pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d)); return; }
   if (!ptr || e.pointerId !== ptr.id) return;
   if (!ptr.moved && Math.hypot(e.clientX - ptr.x0, e.clientY - ptr.y0) < 7) return;
-  if (!ptr.moved) { ptr.moved = true; touched = true; aim = null; stage.classList.add("drag"); followGoal = 0; follow = 0; room = wrap(view.lon - (ready ? rotAt(vid.currentTime) : 0)); }
+  if (!ptr.moved) { ptr.moved = true; stage.classList.add("drag"); freeView(); }
   const f = focal(size());
   room = wrap(room - (e.clientX - ptr.x) / f / RAD);
   view.pitch = Math.max(-80, Math.min(80, view.pitch + (e.clientY - ptr.y) / f / RAD));
   ptr.x = e.clientX; ptr.y = e.clientY;
 });
 function endPtr(e) {
+  touches.delete(e.pointerId); if (touches.size < 2) pinch = null;
   if (!ptr || e.pointerId !== ptr.id) return;
   const p = ptr; ptr = null; stage.classList.remove("drag");
   if (p.moved || e.type === "pointercancel") return;
   const b = stage.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
-  if (drawn.arrow && Math.hypot(x - drawn.arrow[0], y - drawn.arrow[1]) < 40) return go();
-  const hit = drawn.filter(d => inside(x, y, d.pts)).sort((a, b) => a.area - b.area)[0];
+  const g = rings.filter(q => Math.abs(x - q.x) < 50 && Math.abs(y - q.y) < 30).sort((a, c) => Math.hypot(x - a.x, y - a.y) - Math.hypot(x - c.x, y - c.y))[0];
+  if (g && g.turn) { aim = g.turn; touched = true; followGoal = 0; follow = 0; return; }
+  if (g) return hop(g.w, g.fwd);
+  const hit = drawn.filter(d => inside(x, y, d.pts)).sort((a, c) => a.area - c.area)[0];
   select(hit ? hit.key : null);
 }
 stage.addEventListener("pointerup", endPtr); stage.addEventListener("pointercancel", endPtr);
+stage.addEventListener("wheel", e => { if (e.target.closest(".list")) return; e.preventDefault(); zoom = Math.max(1, Math.min(3, zoom * Math.exp(-e.deltaY * 0.0015))); }, { passive: false });
 function inside(x, y, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
 function select(key) {
   sel = key; const s = $("sheet"); s.hidden = !key; if (!key) return;
@@ -378,16 +423,15 @@ function select(key) {
 }
 $("sClose").addEventListener("click", () => select(null));
 
-/* ---------- route list and scope list ---------- */
+/* ---------- room strip and scope list ---------- */
 function lists() {
-  const rl = $("routeList"), ol = document.createElement("ol"); rl.replaceChildren(Object.assign(document.createElement("h2"), { textContent: "Roteiro" }), ol);
+  const reel = $("reel");
   T.nodes.forEach((n, i) => {
-    if (i > 0 && !isLeg(i - 1)) { const g = document.createElement("li"); g.className = "gap"; g.append(Object.assign(document.createElement("div"), { textContent: "↕ " + (n.cut || "Mudança de local: trecho não filmado") })); ol.append(g); }
-    const li = document.createElement("li"), b = document.createElement("button"); b.type = "button"; b.dataset.node = i;
-    b.append((i + 1) + ". " + n.name, Object.assign(document.createElement("small"), { textContent: "Vídeo " + T.clips[n.clip].video.slice(1) + " · " + fmt(T.clips[n.clip].t0 + n.t) + (isLeg(i) ? " · segue andando até o próximo" : "") }));
-    b.addEventListener("click", () => showNode(i)); li.append(b); ol.append(li);
+    const b = document.createElement("button"); b.type = "button"; b.title = n.name; b.dataset.node = i; if (n.cut) b.className = "cut";
+    const im = document.createElement("img"); im.src = n.thumb; im.alt = ""; im.draggable = false;
+    b.append(im, Object.assign(document.createElement("span"), { textContent: n.name.split(" · ").pop() })); b.addEventListener("click", () => showNode(i)); reel.append(b);
   });
-  const sl = $("scopeList"), ul = document.createElement("ul"); sl.replaceChildren(Object.assign(document.createElement("h2"), { textContent: "Escopo · DFD 035/2026 · 19 itens" }), ul);
+  const sl = $("scopeList"), ul = document.createElement("ul"); sl.replaceChildren(Object.assign(document.createElement("h2"), { textContent: "Escopo · DFD 035/2026 · " + T.scope.length + " itens" }), ul);
   for (const s of T.scope) {
     const li = document.createElement("li"); if (s.pending) li.className = "pend";
     const node = s.node == null ? -1 : T.nodes.findIndex(n => n.id === s.node);
@@ -396,58 +440,39 @@ function lists() {
     li.append(b); ul.append(li);
   }
   const li = document.createElement("li"), a = document.createElement("a"); a.href = "guia-v5.html"; a.target = "_blank"; a.rel = "noopener";
-  a.append("Guia por fotos (versão anterior)", Object.assign(document.createElement("small"), { textContent: "18 paradas com foto fixa e a lista de pendências. Reserva caso o percurso não abra." })); li.append(a); ul.append(li);
+  a.append("Guia por fotos (versão anterior)", Object.assign(document.createElement("small"), { textContent: "Paradas com foto fixa. Reserva caso o percurso não abra." })); li.append(a); ul.append(li);
 }
-function toggle(id) { const p = $(id), open = p.hidden; closeAll(); $("routeBtn").textContent = open && id === "routeList" ? "✕ Fechar" : "Roteiro"; $("scopeBtn").textContent = open && id === "scopeList" ? "✕ Fechar" : "Escopo"; if (open) { if (leg && !vid.paused) vid.pause(); p.hidden = false; p.scrollTop = 0; p.querySelectorAll("li.cur").forEach(x => x.classList.remove("cur")); const c = p.querySelector(`[data-node="${ni}"]`); if (c) c.parentNode.classList.add("cur"); } }
-$("routeBtn").addEventListener("click", () => toggle("routeList")); $("scopeBtn").addEventListener("click", () => toggle("scopeList"));
+$("scopeBtn").addEventListener("click", () => { const p = $("scopeList"), open = p.hidden; closeAll(); if (open) { if (leg && !vid.paused) vid.pause(); p.hidden = false; p.scrollTop = 0; $("scopeBtn").textContent = "✕ Fechar"; } });
 
 /* ---------- time bar: every filmed walk laid end to end; ticks are stops, amber marks are changes of location ---------- */
-const SEG = []; let TOTAL = 0;
-function buildBar() {
-  for (let i = 0; i < T.nodes.length - 1; i++) if (isLeg(i)) {
-    const a = T.nodes[i], b = T.nodes[i + 1], t0 = a.clip === b.clip ? a.t : 0;
-    SEG.push({ i, clip: b.clip, t0, t1: b.t, at: TOTAL, len: b.t - t0 }); TOTAL += b.t - t0;
-  }
-  const bar = $("scrub"), mark = (cls, x) => { const m = document.createElement("i"); m.className = cls; m.style.left = (100 * x / TOTAL) + "%"; bar.insertBefore(m, bar.querySelector(".thumb")); };
-  SEG.forEach((sg, k) => { const prev = SEG[k - 1]; if (k && prev.i + 1 !== sg.i) mark("gap", sg.at); else mark("tick", sg.at); });
-  mark("tick", TOTAL);
-}
-function barPos(t) {
-  if (leg) { const sg = SEG.find(x => x.i === ni); return sg ? sg.at + Math.max(0, Math.min(sg.len, t - sg.t0)) : 0; }
-  const after = SEG.find(x => x.i === ni); if (after) return after.at;
-  const before = SEG.find(x => x.i === ni - 1); return before ? before.at + before.len : 0;
-}
 function drawBar(t) {
   if (scrubbing || !TOTAL) return; const p = 100 * barPos(t) / TOTAL, bar = $("scrub");
-  bar.querySelector(".fill").style.width = p + "%"; bar.querySelector(".thumb").style.left = p + "%"; bar.setAttribute("aria-valuenow", Math.round(p));
+  bar.querySelector(".fill").style.width = p + "%"; bar.querySelector(".thumb").style.left = p + "%";
 }
 let scrubbing = false, scrubWant = null, scrubBusy = false;
 function locate(pos) {
   pos = Math.max(0, Math.min(TOTAL, pos)); let sg = SEG[SEG.length - 1];
   for (const x of SEG) if (pos <= x.at + x.len) { sg = x; break; }
-  const t = sg.t0 + Math.max(0, Math.min(sg.len, pos - sg.at));
-  const node = sg.t1 - t < 0.35 ? sg.i + 1 : (t - sg.t0 < 0.35 && T.nodes[sg.i].clip === sg.clip ? sg.i : -1);
-  return { sg, t, node };
+  return { sg, t: sg.t0 + Math.max(0, Math.min(sg.len, pos - sg.at)) };
 }
-async function scrubTo(pos) {                              // show the exact filmed frame at this point of the bar, held still
-  const L = locate(pos), my = ++gen, lon = view.lon, was = clipId;
-  vid.pause(); vid.playbackRate = 1; closeAll(); aim = null; followGoal = 0; follow = 0;
-  ni = L.sg.i; leg = { to: L.sg.i + 1, end: L.sg.t1 };
-  try { if (!(await openAt(L.sg.clip, L.t, my))) return; } catch (e) { return fail(); }
-  if (!touched) { view.lon = refAt(L.t); room = wrap(view.lon - rotAt(L.t)); }
-  else if (was !== L.sg.clip) room = wrap(lon - rotAt(L.t));
-  ui();
-}
-function pump() { if (scrubBusy || scrubWant === null) return; const p = scrubWant; scrubWant = null; scrubBusy = true; scrubTo(p).finally(() => { scrubBusy = false; pump(); }); }
+function pump() { if (scrubBusy || scrubWant === null) return; const p = scrubWant; scrubWant = null; scrubBusy = true; holdAt(locate(p), false).finally(() => { scrubBusy = false; pump(); }); }
 (() => {
   const bar = $("scrub"); let id = null, last = 0;
   const at = e => { const b = bar.getBoundingClientRect(), x = Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)); last = x * TOTAL; bar.querySelector(".fill").style.width = bar.querySelector(".thumb").style.left = (100 * x) + "%"; scrubWant = last; pump(); };
   bar.addEventListener("pointerdown", e => { id = e.pointerId; scrubbing = true; try { bar.setPointerCapture(id); } catch (err) {} at(e); e.preventDefault(); });
   bar.addEventListener("pointermove", e => { if (e.pointerId === id) at(e); });
-  const end = e => { if (e.pointerId !== id) return; id = null; scrubbing = false; const L = locate(last); if (L.node >= 0) { scrubWant = null; showNode(L.node, touched); } };
+  const end = e => {
+    if (e.pointerId !== id) return; id = null; scrubbing = false;
+    const tol = 12 * TOTAL / bar.getBoundingClientRect().width; let best = null;      // a release within 12 px of a tick lands on that stop
+    for (const sg of SEG) for (const [p, node, side] of [[sg.at, sg.i, last >= sg.at], [sg.at + sg.len, sg.i + 1, last <= sg.at + sg.len]]) { const d = Math.abs(p - last); if (d <= tol && (!best || d < best.d - 1e-6 || (Math.abs(d - best.d) <= 1e-6 && side))) best = { d, node }; }
+    if (best) { scrubWant = null; showNode(best.node, touched); }
+  };
   bar.addEventListener("pointerup", end); bar.addEventListener("pointercancel", end);
 })();
-window.__tour = { get bar() { return { total: TOTAL, pos: barPos(vid.currentTime), segs: SEG.map(x => ({ i: x.i, at: x.at, len: x.len })) }; }, get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, sel, tex: texKey, cue: $("cue").hidden ? "" : $("cue").textContent, touched, drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), arrow: drawn.arrow || null, gl: !!GL }; }, T };
-initGL(); lists(); buildBar(); ui();
+addEventListener("visibilitychange", () => { if (document.hidden && leg && !vid.paused) { vid.pause(); hopEnd = null; } });
+vid.addEventListener("ended", () => { if (leg) arrive(); });
+
+window.__tour = { get bar() { return { total: TOTAL, pos: barPos(vid.currentTime), segs: SEG.map(x => ({ i: x.i, at: x.at, len: x.len })), wp: WP.length }; }, get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, zoom, sel, tex: texKey, hop: hopEnd, cue: $("cue").hidden ? "" : $("cue").textContent, touched, rings: rings.filter(g => !g.turn).map(g => ({ x: g.x, y: g.y, fwd: g.fwd, key: g.w.key })), turn: rings.filter(g => g.turn).map(g => ({ x: g.x, y: g.y })), drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), gl: !!GL }; }, T };
+initGL(); buildPath(); lists(); ui();
 if (!GL) fail(); else { requestAnimationFrame(frame); showNode(0); }
 </script>
