@@ -420,7 +420,10 @@ def cmd_build(args):
             w, h = sizes[r["id"]]
             # width that keeps the whole piece plus caption on one 3:4 screen
             pct = max(20, min(100, round(100 * (0.86 * sh / sw) * (w / h))))
-            bits = [pretty_date(r["date"])] + [r[k] for k in ("medium", "style") if r[k]]
+            when = pretty_date(r["date"])
+            if r["date"] and r["date_source"] == "circa":
+                when = "c. " + when
+            bits = [when] + [r[k] for k in ("medium", "style") if r[k]]
             body = (f'<div class="art"><img src="img/{r["id"]}.jpg" alt="{e(r["title"])}" '
                     f'style="width:{pct}%"/></div>'
                     f'<p class="cap"><b>{e(r["title"])}</b><br/>{e(" · ".join(bits))}</p>'
