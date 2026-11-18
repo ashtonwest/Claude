@@ -21,6 +21,9 @@ button:focus-visible { outline: 3px solid var(--clean); outline-offset: 2px; }
 #where { left: max(12px, env(safe-area-inset-left, 0px)); top: 12px; font-size: clamp(16px, 2.8vmin, 24px); font-weight: 800; max-width: calc(100% - 130px); line-height: 1.15; z-index: 3; pointer-events: none; }
 #where small { font-size: .62em; font-weight: 650; color: var(--muted); margin-left: .6em; white-space: nowrap; }
 #scopeBtn { right: max(12px, env(safe-area-inset-right, 0px)); top: 12px; min-height: 48px; min-width: 48px; border: 2px solid var(--muted); z-index: 3; }
+#modeBtn { right: max(12px, env(safe-area-inset-right, 0px)); top: 70px; min-height: 48px; border: 2px solid var(--clean); z-index: 3; }
+#map { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); bottom: 50px; width: min(42vw, 300px); border: 2px solid var(--muted); border-radius: 8px; overflow: hidden; pointer-events: none; }
+#map img { display: block; width: 100%; } #map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 #cue { left: 50%; bottom: 54px; transform: translateX(-50%); max-width: calc(100% - 24px); text-align: center; color: var(--fg); font-size: clamp(13px, 2vmin, 16px); font-weight: 650; pointer-events: none; }
 #msg { left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; max-width: min(86%, 30em); font-size: clamp(16px, 2.6vmin, 22px); line-height: 1.3; padding: .8em 1em; z-index: 4; }
 #msg a { color: var(--clean); }
@@ -84,6 +87,8 @@ button:focus-visible { outline: 3px solid var(--clean); outline-offset: 2px; }
   <div id="where" class="chip"></div>
   <button id="scopeBtn" class="chip" type="button">Escopo</button>
   <div id="cue" class="chip" hidden></div>
+  <button id="modeBtn" class="chip" type="button" hidden></button>
+  <div id="map" hidden><img alt=""><svg xmlns="http://www.w3.org/2000/svg"></svg></div>
   <div id="scrub" role="slider" aria-label="Linha do tempo do percurso" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="track"></i><i class="fill"></i><i class="thumb"></i></div>
   <div id="scopeList" class="list" hidden></div>
   <div id="sheet" hidden><div><span id="sItem"></span><span id="sDo"></span><span id="sLimit"></span></div><button id="sClose" type="button" aria-label="Fechar">✕</button></div>
@@ -113,6 +118,7 @@ let room = 0;               // look direction fixed in the room: camera longitud
 let follow = 0, followGoal = 0;   // 1 = look along the route (play button only); 0 = keep the person's own direction
 let sel = null, drawn = [], rings = [], needTex = false, lastT = -1, jumpTimer = 0, texKey = "";
 let touched = false, aim = null;
+let mode3d = !!T.tracks3d;   // comparison page only: outlines anchored to reconstructed 3D surfaces
 
 /* ---------- media: clips and stills arrive as Blobs, so they can be drawn in 3D even from a local file ---------- */
 async function loadBlobURL(name, ext, mime) {
@@ -202,7 +208,7 @@ function el(n, at) { const e = document.createElementNS(NS, n); for (const k in 
 
 /* outlines exist only for the exact frames where they were drawn and checked */
 function outlinesAt(t) {
-  const tr = T.tracks[clipId] || {}, i = Math.round(t * FPS), out = [];
+  const tr = (mode3d ? T.tracks3d : T.tracks)[clipId] || {}, i = Math.round(t * FPS), out = [];
   for (const id in tr) { const p = tr[id][i]; if (p) out.push({ id, p }); }
   return out;
 }
@@ -231,11 +237,16 @@ function frame() {
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   overlay(r, t, playing);
   drawBar(t);
+  if (T.map && T.map.clip === clipId) {                    // where you are on the map built from the reconstruction
+    const m = T.map, p = m.pos[Math.max(0, Math.min(m.pos.length - 1, Math.round(t * FPS)))], a = (p[2] + m.sign * view.lon) * RAD, sv = $("map").querySelector("svg");
+    sv.setAttribute("viewBox", `0 0 ${m.w} ${m.h}`); const c = (da, l) => (p[0] + l * Math.cos(a + da)).toFixed(1) + "," + (p[1] + l * Math.sin(a + da)).toFixed(1);
+    sv.replaceChildren(el("polygon", { points: `${p[0]},${p[1]} ${c(-0.6, 46)} ${c(0.6, 46)}`, fill: "rgba(255,255,255,.35)" }), el("circle", { cx: p[0], cy: p[1], r: 7, fill: "#fff", stroke: "#0e1418", "stroke-width": 2 }));
+  }
 }
 function overlay(r, t, playing) {
   const sv = $("ov"), pr = projector(r); sv.setAttribute("viewBox", `0 0 ${r.w} ${r.h}`); sv.replaceChildren(); drawn = []; rings = [];
   const cue = $("cue");
-  if (playing || !$("jump").hidden) { cue.hidden = true; return; }
+  if ((playing && !T.tracks3d) || !$("jump").hidden) { cue.hidden = true; return; }
   const fs = Math.max(15, Math.min(20, r.w / 40)), all = outlinesAt(t);
   for (const o of all) {
     const pts = [];
@@ -472,7 +483,9 @@ function pump() { if (scrubBusy || scrubWant === null) return; const p = scrubWa
 addEventListener("visibilitychange", () => { if (document.hidden && leg && !vid.paused) { vid.pause(); hopEnd = null; } });
 vid.addEventListener("ended", () => { if (leg) arrive(); });
 
-window.__tour = { get bar() { return { total: TOTAL, pos: barPos(vid.currentTime), segs: SEG.map(x => ({ i: x.i, at: x.at, len: x.len })), wp: WP.length }; }, get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, zoom, sel, tex: texKey, hop: hopEnd, cue: $("cue").hidden ? "" : $("cue").textContent, touched, rings: rings.filter(g => !g.turn).map(g => ({ x: g.x, y: g.y, fwd: g.fwd, key: g.w.key })), turn: rings.filter(g => g.turn).map(g => ({ x: g.x, y: g.y })), drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), gl: !!GL }; }, T };
+window.__tour = { get bar() { return { total: TOTAL, pos: barPos(vid.currentTime), segs: SEG.map(x => ({ i: x.i, at: x.at, len: x.len })), wp: WP.length }; }, get s() { return { ni, leg: leg && { ...leg }, clipId, t: vid.currentTime, paused: vid.paused, ready, lon: view.lon, pitch: view.pitch, room, follow, zoom, sel, tex: texKey, hop: hopEnd, cue: $("cue").hidden ? "" : $("cue").textContent, touched, mode3d, rings: rings.filter(g => !g.turn).map(g => ({ x: g.x, y: g.y, fwd: g.fwd, key: g.w.key })), turn: rings.filter(g => g.turn).map(g => ({ x: g.x, y: g.y })), drawn: drawn.map(d => ({ key: d.key, area: d.area, c: d.c, pts: d.pts, label: d.label })), gl: !!GL }; }, T };
+if (T.tracks3d) { const b = $("modeBtn"), set = () => { b.textContent = mode3d ? "Marcação: 3D ancorada" : "Marcação: antiga"; }; b.hidden = false; set(); b.addEventListener("click", () => { mode3d = !mode3d; select(null); set(); }); }
+if (T.map) { $("map").hidden = false; $("map").querySelector("img").src = T.map.img; }
 initGL(); buildPath(); lists(); ui();
 if (!GL) fail(); else { requestAnimationFrame(frame); showNode(0); }
 </script>

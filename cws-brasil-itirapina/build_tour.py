@@ -11,9 +11,9 @@ from PIL import Image
 import proj
 
 here = pathlib.Path(__file__).resolve().parent; S = pathlib.Path(sys.argv[1])
-cfg = json.loads((here / "tour.json").read_text()); FPS = 10; STEP = 2.5
-out = here / "tour"; shutil.rmtree(out / "media", ignore_errors=True); (out / "media").mkdir(parents=True)
-off = here / "Itirapina-tour-offline"; shutil.rmtree(off, ignore_errors=True); (off / "media").mkdir(parents=True)
+cfg = json.loads((here / (sys.argv[2] if len(sys.argv) > 2 else "tour.json")).read_text()); SUF = sys.argv[3] if len(sys.argv) > 3 else ""; FPS = 10; STEP = 2.5
+out = here / ("tour" + SUF); shutil.rmtree(out / "media", ignore_errors=True); (out / "media").mkdir(parents=True)
+off = here / ("Itirapina-tour-offline" + SUF); shutil.rmtree(off, ignore_errors=True); (off / "media").mkdir(parents=True)
 stillcache = S / "tour/stills"; stillcache.mkdir(parents=True, exist_ok=True)
 
 clips, data = {}, {}
@@ -70,7 +70,7 @@ for cid in clips:
             if tid in ids:
                 for i in (k - 1, k, k + 1):
                     if i in fm: kept.setdefault(tid, {})[str(i)] = [round(x, 1) for x in fm[i]]
-    tracks[cid] = kept
+    tracks[cid] = {tid: {str(i): [round(x, 1) for x in pts] for i, pts in frames} for tid, frames in tr.items()} if cfg.get("fullTracks") else kept
 
 # media: clips, one sharp still per viewpoint, a thumbnail per stop
 total = 0
@@ -95,8 +95,9 @@ for n, o in zip(cfg["nodes"], nodes):
     th = proj.render(Image.open(jpg), {"yaw": look[0], "pitch": look[1], "w": 95, "h": 60}, 208, 116); buf = io.BytesIO(); th.save(buf, "JPEG", quality=70)
     o["thumb"] = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
-tour = {"clips": clips, "tracks": tracks, "nodes": nodes, "way": way, "targets": cfg["targets"], "scope": cfg["scope"]}
-page = (here / "tour_template.html").read_text().replace("/*__TOUR__*/{}", json.dumps(tour, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"))
+extra = json.loads((S / "sfm1/demo3d.json").read_text()) if cfg.get("demo3d") else {}
+tour = {**extra, "clips": clips, "tracks": tracks, "nodes": nodes, "way": way, "targets": cfg["targets"], "scope": cfg["scope"]}
+page = (here / "tour_template.html").read_text().replace("<title>Itirapina: Roteiro de Limpeza</title>", "<title>" + cfg.get("title", "Itirapina: Roteiro de Limpeza") + "</title>").replace("/*__TOUR__*/{}", json.dumps(tour, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"))
 (out / "index.html").write_text(page)
 head, body = page.split('<div id="stage">', 1)
 (off / "index.html").write_text('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
