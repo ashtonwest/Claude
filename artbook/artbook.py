@@ -39,7 +39,7 @@ CATALOG = ROOT / "catalog.csv"
 CONFIG = ROOT / "book.json"
 
 FIELDS = ["id", "file", "title", "date", "date_source", "medium", "style", "crop",
-          "rotate", "enhance", "include", "cover", "duplicate_of", "notes",
+          "rotate", "enhance", "include", "chapter", "order", "cover", "duplicate_of", "notes",
           "source_name", "sha256"]
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tif", ".tiff", ".bmp", ".gif"}
 DEFAULT_CONFIG = {
@@ -297,6 +297,13 @@ def group_key(row, field):
 
 def grouped(rows, field, reverse=False):
     """[(group name, [rows])], named groups first, pieces in date order inside each."""
+    if field == "chapter":  # hand-made sequence: chapters and pieces follow the order column
+        def pos(r):
+            return (float(r["order"]) if r["order"] else 1e9, r["id"])
+        groups = {}
+        for r in sorted(rows, key=pos):
+            groups.setdefault(r["chapter"] or "Other", []).append(r)
+        return list(groups.items())
     last = {"Undated", "Unsorted"}
     groups = {}
     for r in sorted(rows, key=lambda r: (r["date"] == "", r["date"], r["id"])):
@@ -344,23 +351,61 @@ def fit_text(draw, text, size, bold, max_width):
     return font(size, bold)
 
 
-def art_page(row, cfg):
-    sw, sh = cfg["screen_width"], cfg["screen_height"]
-    margin, caption = round(sw * 0.02), round(sh * 0.085)
-    art = render(row, cfg, (sw - 2 * margin, sh - caption - 2 * margin))
-    pg = Image.new("RGB", (sw, sh), "white")
-    pg.paste(art, ((sw - art.width) // 2, margin + (sh - caption - 2 * margin - art.height) // 2))
-    draw = ImageDraw.Draw(pg)
+def caption_of(row):
     when = pretty_date(row["date"])
     if row["date"] and row["date_source"] == "circa":
         when = "c. " + when
-    details = "  \u00b7  ".join([when] + [row[k] for k in ("medium", "style") if row[k]])
-    y = sh - caption
-    draw.text((sw // 2, y + caption * 0.30), row["title"], fill="black", anchor="mm",
-              font=fit_text(draw, row["title"], round(sh * 0.026), True, sw - 80))
-    draw.text((sw // 2, y + caption * 0.70), details, fill="#222222", anchor="mm",
-              font=fit_text(draw, details, round(sh * 0.019), False, sw - 80))
+    return "  \u00b7  ".join([when] + ([row["medium"]] if row["medium"] else []))
+
+
+def art_page(row, number, cfg):
+    """The work alone on the page, like a plate; its details are in the list at the back."""
+    sw, sh = cfg["screen_width"], cfg["screen_height"]
+    margin, foot = round(sw * 0.025), round(sh * 0.035)
+    art = render(row, cfg, (sw - 2 * margin, sh - foot - 2 * margin))
+    pg = Image.new("RGB", (sw, sh), "white")
+    pg.paste(art, ((sw - art.width) // 2, margin + (sh - foot - 2 * margin - art.height) // 2))
+    ImageDraw.Draw(pg).text((sw // 2, sh - foot * 0.75), str(number), fill="#555555", anchor="mm",
+                            font=font(round(sh * 0.015)))
     return pg
+
+
+def list_pages(chapters, cfg):
+    """List of works: plate number, thumbnail, title, date and medium, by chapter."""
+    sw, sh = cfg["screen_width"], cfg["screen_height"]
+    left, top, row_h, head_h = round(sw * 0.08), round(sh * 0.11), round(sh * 0.085), round(sh * 0.06)
+    pages, pg, draw, y, n = [], None, None, 0, 0
+
+    def new_page():
+        nonlocal pg, draw, y
+        pg = Image.new("RGB", (sw, sh), "white")
+        draw = ImageDraw.Draw(pg)
+        draw.text((left, sh * 0.05), "List of Works", fill="black", anchor="lm", font=font(round(sh * 0.032), True))
+        draw.line((left, sh * 0.08, sw - left, sh * 0.08), fill="black", width=3)
+        y = top
+        pages.append(pg)
+
+    new_page()
+    for name, members in chapters:
+        if y + head_h + row_h > sh * 0.96:
+            new_page()
+        draw.text((left, y + head_h * 0.55), name.upper(), fill="#333333", anchor="lm", font=font(round(sh * 0.017), True))
+        y += head_h
+        for r in members:
+            n += 1
+            if y + row_h > sh * 0.96:
+                new_page()
+            thumb = render(r, cfg, (round(row_h * 0.85), round(row_h * 0.85)))
+            box = round(row_h * 0.85)
+            pg.paste(thumb, (left + round(sw * 0.07) + (box - thumb.width) // 2, y + (box - thumb.height) // 2))
+            draw.text((left + round(sw * 0.05), y + box / 2), str(n), fill="black", anchor="rm", font=font(round(sh * 0.02), True))
+            tx = left + round(sw * 0.07) + box + round(sw * 0.03)
+            draw.text((tx, y + box * 0.32), r["title"], fill="black", anchor="lm",
+                      font=fit_text(draw, r["title"], round(sh * 0.021), True, sw - tx - left))
+            draw.text((tx, y + box * 0.72), caption_of(r), fill="#333333", anchor="lm",
+                      font=fit_text(draw, caption_of(r), round(sh * 0.017), False, sw - tx - left))
+            y += row_h
+    return pages
 
 
 def divider_page(name, count, cfg):
@@ -424,15 +469,21 @@ def cmd_build(args):
     add_page("cover", cfg["title"], cover_page(cover_row, cfg), cover=True)
     nav_items.append(("cover.xhtml", "Cover", []))
 
-    # one chapter per group, pieces in date order inside it
-    for gi, (name, members) in enumerate(grouped(rows, args.sort, args.reverse)):
+    sort = args.sort or ("chapter" if any(r["chapter"] for r in rows) else "date")
+    chapters = grouped(rows, sort, args.reverse)
+    number = 0
+    for gi, (name, members) in enumerate(chapters):
         div = f"chapter-{gi + 1:02d}"
         add_page(div, name, divider_page(name, len(members), cfg))
         children = []
         for r in members:
-            add_page(r["id"], r["title"], art_page(r, cfg))
-            children.append((f"{r['id']}.xhtml", r["title"], []))
+            number += 1
+            add_page(r["id"], r["title"], art_page(r, number, cfg))
+            children.append((f"{r['id']}.xhtml", f"{number}. {r['title']}", []))
         nav_items.append((f"{div}.xhtml", name, children))
+    for li, pg in enumerate(list_pages(chapters, cfg)):
+        add_page(f"works-{li + 1:02d}", "List of Works", pg)
+    nav_items.append(("works-01.xhtml", "List of Works", []))
 
     def nav_list(items):
         out = ["<ol>"]
@@ -501,7 +552,7 @@ def cmd_build(args):
         for name, data in files.items():
             store = zipfile.ZIP_STORED if name.endswith((".jpg", ".png")) else zipfile.ZIP_DEFLATED
             z.writestr("OEBPS/" + name, data, store)
-    print(f"{out}  ({len(rows)} pieces, {out.stat().st_size / 1e6:.1f} MB, chapters by {args.sort})")
+    print(f"{out}  ({len(rows)} pieces, {out.stat().st_size / 1e6:.1f} MB, chapters by {sort})")
 
 
 def main():
@@ -515,7 +566,8 @@ def main():
     s.add_argument("--all", action="store_true", help="include left-out pieces")
     s.set_defaults(fn=cmd_sheet)
     b = sub.add_parser("build")
-    b.add_argument("--sort", choices=["date", "style", "medium"], default="date")
+    b.add_argument("--sort", choices=["chapter", "date", "style", "medium"],
+                   help="chapters; default is the catalog's own chapter/order columns if filled in, else date")
     b.add_argument("--reverse", action="store_true")
     b.add_argument("--gray", action="store_true", help="grayscale, for black-and-white Kobos")
     b.set_defaults(fn=cmd_build)

@@ -9,7 +9,7 @@ Turns a folder of drawings into a Kobo book, and rebuilds it whenever art is add
    leaves out anything already in the book (exact copies, crops, rotated re-photos).
 3. Open `catalog.csv` and fill in the new rows (see below).
 4. `python3 artbook.py sheet` — makes `build/contact-sheet.jpg` to check the crops.
-5. `python3 artbook.py build --sort date` (chapters by `date`, `style` or `medium`; add `--reverse`).
+5. `python3 artbook.py build` — uses the `chapter` and `order` columns. `--sort date`, `style` or `medium` makes automatic chapters instead.
 6. Copy the `.fxl.kepub.epub` from `build/` to the Kobo over USB.
 
 There is one book, `build/Art & Drawings.fxl.kepub.epub`. `--sort` decides its chapters
@@ -30,6 +30,8 @@ greyscale; colour work gets extra saturation and contrast for colour e-ink
 | rotate | degrees clockwise: `90`, `180`, `270` |
 | enhance | `paper` turns grey or yellow paper back to white |
 | include | `no` leaves a piece out without deleting it |
+| chapter | chapter the piece sits in, e.g. `Paintings` |
+| order | position in the book (1, 2, 3...); chapters follow their first piece |
 | cover | `yes` on the one piece used for the cover |
 | duplicate_of | ID of the piece this is a repeat of |
 
