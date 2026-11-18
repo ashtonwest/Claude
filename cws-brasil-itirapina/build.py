@@ -27,7 +27,7 @@ for s in stops:
     vf = f"v360=e:flat:yaw={v['yaw']}:pitch={v['pitch']}:h_fov={v['fov']}:w=1600:h=900:interp=lanczos,unsharp=5:5:0.6"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(eq), "-vf", vf, "-q:v", "4", str(jpg)], check=True)
     out.append({
-        "id": s["id"], "room": s["room"], "do": s["do"], "limit": s.get("limit", ""),
+        "id": s["id"], "room": s["room"], "item": s.get("item", ""), "do": s["do"], "limit": s.get("limit", ""),
         "status": s["status"], "shapes": s["shapes"],
         "img": "data:image/jpeg;base64," + base64.b64encode(jpg.read_bytes()).decode(),
     })

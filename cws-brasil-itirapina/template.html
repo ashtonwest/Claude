@@ -46,6 +46,8 @@ body {
 #do { font-size: clamp(20px, 4.2vmin, 40px); font-weight: 750; line-height: 1.2; margin: 0; text-wrap: balance; }
 #limit { font-size: clamp(17px, 3.4vmin, 32px); font-weight: 650; line-height: 1.25; margin: 0; color: var(--stop); }
 #limit:empty { display: none; }
+#chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#item { font-size: clamp(15px, 2.6vmin, 22px); font-weight: 700; color: var(--muted); letter-spacing: .02em; }
 #status {
   align-self: flex-start; font-size: clamp(13px, 1.9vmin, 17px); font-weight: 750; letter-spacing: .06em; text-transform: uppercase;
   color: #1a1400; background: var(--warn); padding: .2em .55em; border-radius: 4px;
@@ -96,7 +98,7 @@ body {
 </div>
 <div id="panel">
   <div id="text">
-    <span id="status" hidden>Escopo a confirmar</span>
+    <div id="chips"><span id="item"></span><span id="status" hidden>A confirmar</span></div>
     <p id="do"></p>
     <p id="limit"></p>
   </div>
@@ -171,6 +173,7 @@ function draw() {
   $("room").textContent = stop.room;
   $("do").textContent = stop.do;
   $("limit").textContent = stop.limit || "";
+  $("item").textContent = stop.item || "";
   $("status").hidden = stop.status !== "confirmar";
   $("count").textContent = (i + 1) + " / " + STOPS.length;
   $("prev").disabled = i === 0;
