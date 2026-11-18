@@ -21,7 +21,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
 try:  # optional: lets phone HEIC photos be read
     import pillow_heif
@@ -49,7 +49,7 @@ DEFAULT_CONFIG = {
     "screen_height": 1680,
     "grayscale": False,
     "jpeg_quality": 90,
-    "color_boost": 1.6,
+    "color_boost": 1.5,
     "contrast_boost": 1.15,
 }
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -268,10 +268,13 @@ def is_monochrome(im):
 def tune_for_screen(im, cfg):
     """Colour e-ink is pale and coarse: black-and-white work goes out as crisp
     greyscale, colour work gets extra saturation and contrast to compensate."""
+    sharpen = ImageFilter.UnsharpMask(radius=1, percent=60, threshold=2)  # e-ink softens edges
     if cfg["grayscale"] or is_monochrome(im):
-        return ImageOps.autocontrast(im.convert("L"), cutoff=0.5).convert("RGB")
+        return ImageOps.autocontrast(im.convert("L"), cutoff=0.5).convert("RGB").filter(sharpen)
+    # true black and true white first, then saturation; past about +50% it starts eating detail
+    im = ImageOps.autocontrast(im, cutoff=0.5, preserve_tone=True)
     im = ImageEnhance.Color(im).enhance(cfg["color_boost"])
-    return ImageEnhance.Contrast(im).enhance(cfg["contrast_boost"])
+    return ImageEnhance.Contrast(im).enhance(cfg["contrast_boost"]).filter(sharpen)
 
 
 def pretty_date(d):
@@ -398,17 +401,21 @@ def cmd_build(args):
     def add_page(name, title, im, cover=False):
         import io
         buf = io.BytesIO()
-        if is_monochrome(im):
-            im = im.convert("L")  # smaller file, and e-ink shows pure greys at full sharpness
-        im.save(buf, "JPEG", quality=cfg["jpeg_quality"], optimize=True)
-        files[f"img/{name}.jpg"] = buf.getvalue()
-        manifest.append((f"img/{name}.jpg", "image/jpeg", "cover-image" if cover else ""))
+        if is_monochrome(im) and not cover:
+            # greys show at the screen's full sharpness; PNG keeps line edges free of JPEG fuzz
+            ext, mime = "png", "image/png"
+            im.convert("L").quantize(16, dither=Image.Dither.NONE).save(buf, "PNG", optimize=True)
+        else:
+            ext, mime = "jpg", "image/jpeg"
+            im.save(buf, "JPEG", quality=cfg["jpeg_quality"], optimize=True, subsampling=0)
+        files[f"img/{name}.{ext}"] = buf.getvalue()
+        manifest.append((f"img/{name}.{ext}", mime, "cover-image" if cover else ""))
         files[f"{name}.xhtml"] = (
             '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n'
             '<html xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8"/>'
             f'<title>{e(title)}</title><meta name="viewport" content="width={sw}, height={sh}"/>'
             '<link rel="stylesheet" type="text/css" href="style.css"/></head>'
-            f'<body><img src="img/{name}.jpg" alt="{e(title)}" width="{sw}" height="{sh}"/></body></html>'
+            f'<body><img src="img/{name}.{ext}" alt="{e(title)}" width="{sw}" height="{sh}"/></body></html>'
         ).encode("utf-8")
         manifest.append((f"{name}.xhtml", "application/xhtml+xml", ""))
         spine.append(f"{name}.xhtml")
@@ -483,7 +490,7 @@ def cmd_build(args):
         + '</spine></package>').encode()
 
     BUILD.mkdir(exist_ok=True)
-    out = BUILD / f"{cfg['title']}.kepub.epub"
+    out = BUILD / f"{cfg['title']}.fxl.kepub.epub"  # Kobo's own ending for fixed-layout books
     with zipfile.ZipFile(out, "w") as z:
         z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
         z.writestr("META-INF/container.xml",
@@ -492,7 +499,7 @@ def cmd_build(args):
                    '<rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>'
                    '</rootfiles></container>', zipfile.ZIP_DEFLATED)
         for name, data in files.items():
-            store = zipfile.ZIP_STORED if name.endswith(".jpg") else zipfile.ZIP_DEFLATED
+            store = zipfile.ZIP_STORED if name.endswith((".jpg", ".png")) else zipfile.ZIP_DEFLATED
             z.writestr("OEBPS/" + name, data, store)
     print(f"{out}  ({len(rows)} pieces, {out.stat().st_size / 1e6:.1f} MB, chapters by {args.sort})")
 
