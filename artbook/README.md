@@ -12,8 +12,8 @@ Turns a folder of drawings into a Kobo book, and rebuilds it whenever art is add
 5. `python3 artbook.py build --sort date` (or `style`, or `medium`; add `--reverse`).
 6. Copy the `.kepub.epub` from `build/` to the Kobo over USB.
 
-Every book has all three indexes (date, style, medium) at the front. `--sort` only
-changes the page-turn order and the chapters.
+There is one book, `build/art-drawings.kepub.epub`. `--sort` decides its chapters
+(years, styles or mediums). All three indexes are always at the front.
 
 ## catalog.csv columns
 

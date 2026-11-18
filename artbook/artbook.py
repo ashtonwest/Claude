@@ -4,7 +4,7 @@
     python3 artbook.py add                 # take in everything in inbox/
     python3 artbook.py check               # list duplicates and rows missing details
     python3 artbook.py sheet               # contact sheet of how each piece will look
-    python3 artbook.py build --sort date   # or: style, medium   (add --reverse)
+    python3 artbook.py build --sort date   # one book; chapters by date, style or medium
 
 The catalog (catalog.csv) is the source of truth. Edit it, rebuild, done.
 Originals are copied into originals/ and never modified.
@@ -341,8 +341,27 @@ def page(title, body):
             f'<body>{body}</body></html>')
 
 
+# (screen scale, jpeg quality) steps tried in turn when a size limit is given
+SHRINK_STEPS = [(1.0, 88), (1.0, 78), (1.0, 68), (0.85, 68), (0.85, 58), (0.75, 55), (0.65, 50), (0.65, 44), (0.6, 42)]
+
+
 def cmd_build(args):
-    cfg = load_config()
+    """Build the book; with --max-mb, step quality down until the file fits."""
+    base = load_config()
+    for scale, quality in SHRINK_STEPS if args.max_mb else [(1.0, base["jpeg_quality"])]:
+        cfg = dict(base, jpeg_quality=quality, screen_width=int(base["screen_width"] * scale),
+                   screen_height=int(base["screen_height"] * scale))
+        out = build_book(args, cfg)
+        size = out.stat().st_size / 1e6
+        if not args.max_mb or size <= args.max_mb:
+            break
+    else:
+        print(f"Could not get under {args.max_mb} MB; smallest is {size:.1f} MB.")
+    print(f"{out}  ({size:.1f} MB, {cfg['screen_width']}x{cfg['screen_height']}, "
+          f"quality {cfg['jpeg_quality']}, chapters by {args.sort})")
+
+
+def build_book(args, cfg):
     if args.gray:
         cfg["grayscale"] = True
     rows = [r for r in load_catalog() if included(r)]
@@ -361,7 +380,7 @@ def cmd_build(args):
     def jpeg(im):
         import io
         buf = io.BytesIO()
-        im.save(buf, "JPEG", quality=cfg["jpeg_quality"], optimize=True)
+        im.save(buf, "JPEG", quality=cfg["jpeg_quality"], optimize=True, progressive=True)
         return buf.getvalue()
 
     # images
@@ -371,7 +390,7 @@ def cmd_build(args):
         sizes[r["id"]] = im.size
         files[f"img/{r['id']}.jpg"] = jpeg(im)
         manifest.append((f"img/{r['id']}.jpg", "image/jpeg", ""))
-        im.thumbnail((300, 300), Image.LANCZOS)
+        im.thumbnail((220, 220), Image.LANCZOS)
         files[f"thumb/{r['id']}.jpg"] = jpeg(im)
         manifest.append((f"thumb/{r['id']}.jpg", "image/jpeg", ""))
 
@@ -485,7 +504,7 @@ def cmd_build(args):
 
     BUILD.mkdir(exist_ok=True)
     slug = "-".join("".join(c if c.isalnum() else " " for c in cfg["title"]).lower().split()) or "artbook"
-    out = BUILD / f"{slug}-by-{args.sort}.kepub.epub"
+    out = BUILD / f"{slug}.kepub.epub"  # one book; --sort decides its chapters
     with zipfile.ZipFile(out, "w") as z:
         z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
         z.writestr("META-INF/container.xml",
@@ -496,7 +515,7 @@ def cmd_build(args):
         for name, data in files.items():
             store = zipfile.ZIP_STORED if name.endswith(".jpg") else zipfile.ZIP_DEFLATED
             z.writestr("OEBPS/" + name, data, store)
-    print(f"{out}  ({len(rows)} pieces, {out.stat().st_size / 1e6:.1f} MB, sorted by {args.sort})")
+    return out
 
 
 def main():
@@ -513,6 +532,7 @@ def main():
     b.add_argument("--sort", choices=["date", "style", "medium"], default="date")
     b.add_argument("--reverse", action="store_true")
     b.add_argument("--gray", action="store_true", help="grayscale, for black-and-white Kobos")
+    b.add_argument("--max-mb", type=float, help="shrink images until the book is under this size")
     b.set_defaults(fn=cmd_build)
     args = ap.parse_args()
     args.fn(args)
