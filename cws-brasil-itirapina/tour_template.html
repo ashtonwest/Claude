@@ -410,7 +410,7 @@ function endPtr(e) {
   const g = rings.filter(q => Math.abs(x - q.x) < 50 && Math.abs(y - q.y) < 30).sort((a, c) => Math.hypot(x - a.x, y - a.y) - Math.hypot(x - c.x, y - c.y))[0];
   if (g && g.turn) { aim = g.turn; touched = true; followGoal = 0; follow = 0; return; }
   if (g) return hop(g.w, g.fwd);
-  const hit = drawn.filter(d => inside(x, y, d.pts)).sort((a, c) => a.area - c.area)[0];
+  const hit = drawn.filter(d => d.label && Math.abs(x - d.label[0]) < d.label[2] + 6 && Math.abs(y - d.label[1]) < 18)[0] || drawn.filter(d => inside(x, y, d.pts)).sort((a, c) => a.area - c.area)[0];   // the label is tappable too
   select(hit ? hit.key : null);
 }
 stage.addEventListener("pointerup", endPtr); stage.addEventListener("pointercancel", endPtr);
