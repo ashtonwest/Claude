@@ -42,6 +42,9 @@ exact quote.
 | Judge campaigns by rate and minimum | Judge by minimum, **budget remaining** and review speed | Clippers report clearing the minimum and never being reviewed before the budget drained. |
 | YouTube Shorts ad revenue as a later bonus | Ignore it | From Feb 1, 2027 it needs 10 million qualified Shorts views per 90 days, and reused clips don't count (official). |
 | Sell clips to streamers in weeks 3 to 4 | Weeks 7 to 9, after about 30 approved clips | Streamers buy on numbers; generic pitches convert near zero. |
+| Download whole streams and let the clipper find moments | Start from Twitch's or Kick's own clip tool, or files the campaign supplies | Ripping streams is prohibited by YouTube's, Twitch's and Kick's terms. See section 6a. |
+| Two campaigns (KreekCraft and TOMO) | KreekCraft only, unless TOMO is refunded | TOMO's page showed about $62 of $1,000 left on Nov 19. |
+| Hook text and captions on every clip | Hook carrying outside context, context cards, a closing take, varied layout | YouTube named "template-based bulk changes" and on-screen description as not enough. See section 7. |
 
 ## 3. The 12-week plan
 
@@ -82,8 +85,10 @@ exact quote.
 2. Join **KreekCraft GTA 6 Clipping**: $1.00 per 1,000 views, $2 floor
    (2,000 views), $400 cap, $6,824 budget, his stream overlay must be
    visible. Best fit for a new account.
-3. Join **TOMO GTA VI Clipping**: $1.50 per 1,000, $3.50 floor, $150 cap.
-   Only a $1,000 budget, so check what is left first.
+   The campaign page and a tracker disagree on the floor and cap ($3 and
+   $300 versus $2 and $400); read the page after joining.
+3. **TOMO GTA VI Clipping** ($1.50 per 1,000) is nearly drained: about $62
+   of $1,000 was left on Nov 19. Skip it unless the budget is topped up.
 4. Skip the pools (Kai Cenat, Lacy, Clix, YourRAGE: 400,000 to 1,000,000
    views needed for any share; Lacy's works out near $0.27 per 1,000) and
    Gattouz (pays nothing under 100,000 views).
@@ -114,8 +119,12 @@ campaign page is the only number to trust.
 - [ ] 11. Link all three accounts inside Content Rewards before posting.
 - [ ] 12. Add a payout method and complete the identity check.
 - [ ] 13. Join KreekCraft GTA 6 Clipping.
-- [ ] 14. Join TOMO GTA VI Clipping if budget remains.
+- [ ] 14. Skip TOMO unless its budget has been topped up.
 - [ ] 15. Save or screenshot each brief, including per-platform rates.
+- [ ] 15a. Paste the footage question from section 6a into the KreekCraft
+      campaign chat and send Claude the answer.
+- [ ] 15b. Create a free Twitch account (needed to make and download
+      clips of his stream).
 
 **Computer**
 - [ ] 16. Install the Claude desktop app and sign in.
@@ -124,10 +133,10 @@ campaign page is the only number to trust.
 - [ ] 19. Leave the computer on and awake.
 
 **Posting route (decide one, see section 6)**
-- [ ] 20a. Sign up for a scheduling app that is an approved partner of all
-      three platforms and connect the three accounts, **or**
-- [ ] 20b. Post from your phone: about 10 minutes a day from a folder of
-      finished clips with titles.
+- [ ] 20a. Free, about 10 minutes a day: post from your phone or the
+      platforms' own schedulers. Recommended until the first payout.
+- [ ] 20b. Paid, near hands-off: sign up for the scheduling app in
+      section 6 and connect the three accounts.
 
 **Hand-off**
 - [ ] 21. Tell Claude "setup done" and paste the briefs.
@@ -156,9 +165,113 @@ standard scam in this space.
 - **Known limits:** picking a Shorts thumbnail frame is done in the mobile
   app. Desktop Reels reportedly lack trending audio.
 
+### Scheduling apps (researched Nov 19, vendor docs only)
+
+No app checked is confirmed to set the paid-promotion label on all three
+platforms. None of the vendors' audit status could be confirmed in the
+platforms' partner directories. Connecting an app gives it posting rights
+on your accounts, so a small unverified vendor is a real trust decision.
+
+| App | Price for 3 accounts | YouTube label | TikTok label | Instagram label | Claude can load the queue |
+|---|---|---|---|---|---|
+| Upload-Post (Basic) | $24 a month | Yes, verify it shows | Yes | No, add in the app after posting | Yes (API on every plan) |
+| ShortSync (Creator) | $19.99 a month; free plan has 5 uploads | Yes | Yes | Claimed, untested | Yes (API, CSV, cloud-folder import) |
+| Buffer | about $15 to $18; has a free plan | Not offered | Not listed | Not offered | Yes |
+| Metricool | $20; free plan 20 posts a month | Not listed | Yes | Not listed | Needs a $53 plan for the API |
+
+- **Cost check:** $20 to $24 a month is close to what a typical clipper
+  earns from a whole campaign (section 1). Paying before the first payout
+  will probably lose money in month one.
+- **Recommendation:** post by phone or the platforms' own schedulers for
+  the first two weeks. After the first withdrawal, test ShortSync's free
+  5 uploads; if all three labels show, it removes the last manual step.
+  Otherwise use Upload-Post and add the Instagram label by hand.
+- **Platforms' own schedulers:** YouTube Studio and TikTok Studio both
+  have the disclosure setting and can be batch-scheduled in one sitting.
+  Instagram's scheduler does not support paid-partnership posts, so
+  disclosed Reels are posted live from the app.
+- **YouTube label bug:** a Google engineer confirmed on Nov 4, 2026 that
+  the label set through the upload API did not show to viewers; a fix was
+  submitted Nov 6, rollout unconfirmed. Check the first posts by eye.
+- **TikTok limits (official):** about 15 posts a day per account across
+  all apps; unaudited apps post private only.
+- **Getting the link:** TikTok's API does not return the post link
+  immediately, which matters for the 30-minute submission window.
+
+## 6a. Where the footage comes from
+
+| Method | YouTube | Twitch | Kick |
+|---|---|---|---|
+| Files supplied by the campaign or streamer | Permitted | Permitted | Permitted |
+| The platform's own clip tool | Gives a link, not a file | Permitted: the clip's creator can download it, up to 60 s | Permitted: clips download as .mp4, 10 to 180 s |
+| Screen recording the stream | Grey | Grey | Grey |
+| Ripping tools (yt-dlp, streamlink) | Prohibited by terms | Prohibited by terms | Prohibited by terms |
+
+- **KreekCraft:** the brief names his GTA 6 livestreams and replays on
+  YouTube or Twitch and supplies only a logo overlay, no stream files.
+  The clean route is his Twitch channel: make a clip with Twitch's clip
+  button while watching, download it from Clips Manager, then run it
+  through the clipper for the vertical layout, hook and overlay.
+- **Unverified:** whether his Twitch channel has clipping switched on.
+- **What this does to the workflow:** someone has to watch the stream, or
+  its replay on Twitch, and press the clip button at good moments. The
+  clipper's loudness search only applies when a campaign hands over a
+  full file. This is the largest remaining manual step in the project.
+- **Written permission:** a streamer's permission settles copyright but
+  does not, read literally, satisfy YouTube's download clause, which also
+  asks for YouTube's permission.
+- **Enforcement history:** no documented bans or suits against campaign
+  clippers over how they got footage. Enforcement has targeted ripping
+  tools, and one 2026 US case let a claim over ripped YouTube clips
+  proceed against a creator (secondary reports).
+- **Licence (Content Rewards Creator Terms §17):** limited, revocable,
+  only to make and post that campaign's clip. The brand owns the
+  approved clip.
+
+Question to paste into the KreekCraft campaign chat:
+
+> Can you share a Drive/Dropbox folder of stream VODs or exports for
+> clippers? If not, please confirm in writing that clippers may (a)
+> download their own Twitch clips of Kreek's channel and (b) screen-record
+> the live stream for this campaign. Is AI-assisted editing (moment
+> detection, auto-captions, reframing) of real stream footage allowed?
+
+Content Rewards counts only rules written on the campaign page, so ask
+for the answer to be added there.
+
 ## 7. Content rules for every clip
 
-- **Length:** 15 to 45 seconds, ending on the payoff. Never over 60 on
+### Clip format (researched Nov 19)
+
+| Time | Element | Evidence |
+|---|---|---|
+| 0 to 2 s | Hook that names the streamer and gives context the footage doesn't show ("Hour 9 of the marathon, 3 failed heists so far"), written per clip | Official wording from Instagram; campaigns require the name |
+| 2 to 35 s | One moment with its build-up kept, or 2 to 3 moments ordered as a story | Official wording from YouTube ("storyline and commentary") |
+| Mid-clip | 1 or 2 context cards: the stakes, who the other person is, a number | Official wording from Instagram; untested in practice |
+| Last 3 to 5 s | A closing take, ideally in a real recorded voice | Official wording from YouTube |
+| Throughout | Word-timed captions | Helps retention only; not enough for originality |
+| Length | 30 to 45 s | Vendor data from 1,052 clips |
+
+- **Known not to be enough:** captions, borders, watermarks, credits,
+  speed or crop changes, narration that describes the screen, plain
+  compilations, and one identical template on every clip. YouTube's
+  spokesperson named "template-based bulk changes" specifically.
+- **So layouts must vary** from clip to clip.
+- **Text-to-speech narration:** platforms allow it, but campaigns that ban
+  "AI-generated videos" don't define the term and one agency bans on the
+  first strike. No synthetic voice until a campaign says yes in writing.
+- **Closing take:** must not show the streamer in a negative light; several
+  briefs ban that.
+- **Honest gap:** nobody has published before-and-after data for clip
+  channels, and no platform gives a threshold. Whether on-screen text
+  alone satisfies YouTube is untested. Two large recap channels looked at:
+  one flat, one sharply down in November (cause unproven).
+- **Clipper status:** it adds the hook and disclosure today. Context
+  cards, a closing card and layout variation are not built yet.
+
+### Rules
+
+- **Length:** 30 to 45 seconds, ending on the payoff. Never over 60 on
   Shorts: a claimed Short over a minute is blocked (official).
 - **Open on the reaction**, then show how it happened. Hook text on screen
   from the first frame, 4 to 8 words.
@@ -270,8 +383,12 @@ Hook patterns that practitioners report working:
 
 ## 12. Open questions
 
-- Which scheduling apps are approved partners of all three platforms and
-  allow the paid-promotion setting. Not yet researched.
+- Whether ShortSync really sets all three paid-promotion labels. Test on
+  its free plan after the first payout.
+- Whether any scheduling vendor is in the platforms' partner directories.
+- Whether KreekCraft's Twitch channel allows clipping, and what the
+  campaign answers to the footage question.
+- Who watches the stream and presses the clip button. Not solved.
 - Whether hook text plus a restructured cut is enough to count as original
   on each platform. No platform publishes a threshold.
 - Which tax form the payout processor issues. Not confirmed.
@@ -321,6 +438,29 @@ Platform policy
 - https://developers.facebook.com/docs/instagram-platform/content-publishing/ (official)
 - https://support.rockstargames.com/articles/7bNaeoMFTV0iUDGhStTXvz/policy-on-posting-copyrighted-material (official)
 - https://digiday.com/media/wtf-is-clipping/ (press)
+
+Scheduling apps
+- https://docs.upload-post.com/guides/paid-partnership (vendor docs)
+- https://docs.upload-post.com/resources/pricing-and-limits (vendor docs)
+- https://shortsync.app/docs/platforms/youtube-shorts (vendor docs)
+- https://shortsync.app/docs/api/workspace/posts (vendor docs)
+- https://issuetracker.google.com/issues/581462598 (official)
+- https://support.google.com/youtube/answer/154235 (official)
+
+Footage
+- https://contentrewards.com/terms (platform, Creator Terms §17)
+- https://contentrewards.com/articles/ai-clipping (platform)
+- https://www.youtube.com/t/terms (official)
+- https://legal.twitch.com/en/legal/terms-of-service (official)
+- https://help.twitch.tv/articles/en_US/Knowledge/how-to-use-clips (official)
+- https://help.kick.com/en/articles/7120566 (official)
+- https://kick.com/terms-of-service (official)
+
+Clip format
+- https://www.searchenginejournal.com/youtube-original-shorts-reposted-clips-reach/591774/ (press)
+- https://techcrunch.com/2026/04/30/instagram-restricts-reach-of-content-aggregators-in-new-crackdown/ (press)
+- https://creatordb.app/creator-news/the-rise-of-the-clip-economy/ (vendor)
+- https://reachclipping.com/ClixGTA (agency rules)
 
 Scaling
 - https://www.tubefilter.com/2026/08/10/youtube-partner-program-ad-eligibility-requirements-shorts/ (press)
